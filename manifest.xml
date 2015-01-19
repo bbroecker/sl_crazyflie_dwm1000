@@ -1,0 +1,17 @@
+<package>
+  <description brief="sl_crazyflie">
+
+     sl_crazyflie
+
+  </description>
+  <author>jdf</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/sl_crazyflie</url>
+  <depend package="rospy"/>
+  <depend package="geometry_msgs"/>
+  <depend package="std_msgs"/>
+
+</package>
+
+
