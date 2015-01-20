@@ -45,6 +45,7 @@ class hoverController(object):
         self.lastCall_pose = rospy.get_time()
 
         self.lastZ = None
+        self.cont = None
 
         self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, Ilimit_thrust)
         self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
@@ -55,7 +56,7 @@ class hoverController(object):
     
     def callback_pose(self, data):
         self.lastZ = data.pose.position.z
-        if not self.paused:
+        if not self.paused and self.cont:
             dt = float(rospy.get_time() - self.lastCall_pose)
             self.lastcall_pose = rospy.get_time()
             #better?
@@ -113,7 +114,11 @@ class hoverController(object):
         rospy.Service('hover/toggle_hover', Empty, self.callback_toggle_hover)
         rospy.Subscriber('hover/setpoint', Twist, self.callback_setpoint)
         print "Hover controller spinning"
-        rospy.spin()    
+
+        r = rospy.Rate(5)
+        while not rospy.is_shutdown():
+            self.cont = True
+            r.sleep()
         
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@ class mocap_controller:
         self.cmd_vel_pid = Twist()
         self.pid_received = False
         self.teleop_received = False
-        r = rospy.Rate(50)
+        r = rospy.Rate(5)
 
         self.joy_subscriber_ = rospy.Subscriber("joy", Joy, self.joy_callback)
         self.velocity_subscriber_teleop = rospy.Subscriber("teleop/cmd_vel", Twist, self.cmd_vel_callback_teleop)
