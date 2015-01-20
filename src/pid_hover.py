@@ -16,9 +16,11 @@ class hoverController(object):
                 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
 
-        KP_thrust = 15000
-        KI_thrust = 0
-        KD_thrust = 0
+
+        AFFE = 100
+        KP_thrust = 30 * AFFE
+        KI_thrust = 40 * AFFE
+        KD_thrust = 500 * AFFE
         Ilimit_thrust = 0 
     
         KP_xy = 1
