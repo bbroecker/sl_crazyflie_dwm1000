@@ -21,15 +21,15 @@ class Teleop:
         self.axes["yaw"] = {"axis": 0, "max": 90 * math.pi / 180.0}
         self.button = {"on": 1, "off": 2}
 
-        self.axes["x"]["axis"] = rospy.get_param("x_axis", 0)
-        self.axes["y"]["axis"] = rospy.get_param("y_axis", 0)
-        self.axes["z"]["axis"] = rospy.get_param("z_axis", 0)
-        self.axes["yaw"]["axis"] = rospy.get_param("yaw_axis", 0)
+        self.axes["x"]["axis"] = rospy.get_param("~x_axis", 0)
+        self.axes["y"]["axis"] = rospy.get_param("~y_axis", 0)
+        self.axes["z"]["axis"] = rospy.get_param("~z_axis", 0)
+        self.axes["yaw"]["axis"] = rospy.get_param("~yaw_axis", 0)
 
-        self.axes["x"]["max"] = rospy.get_param("x_velocity_max", 2)
-        self.axes["y"]["max"] = rospy.get_param("y_velocity_max", 2)
-        self.axes["z"]["max"] = rospy.get_param("z_velocity_max", 2)
-        self.axes["yaw"]["max"] = rospy.get_param("yaw_velocity_max", 2)
+        self.axes["x"]["max"] = rospy.get_param("~x_velocity_max", 2)
+        self.axes["y"]["max"] = rospy.get_param("~y_velocity_max", 2)
+        self.axes["z"]["max"] = rospy.get_param("~z_velocity_max", 2)
+        self.axes["yaw"]["max"] = rospy.get_param("~yaw_velocity_max", 2)
 
         self.velocity_ = Twist()
 
@@ -48,7 +48,7 @@ class Teleop:
 
 
     def get_axis(self, joy_msg, axis):
-        if axis == 0 or axis > joy_msg.axes.length():
+        if axis == 0 or axis > len(joy_msg.axes):
             return 0
         sign = 1
         if axis < 0:
@@ -57,7 +57,7 @@ class Teleop:
 
 
     def get_button(self, joy_msgs, button_idx):
-        if button_idx <= 0 or button_idx > joy_msgs.axes.length():
+        if button_idx <= 0 or button_idx > len(joy_msgs.axes):
             return 0
         return joy_msgs.buttons[button_idx - 1]
 

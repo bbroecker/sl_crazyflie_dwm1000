@@ -3,10 +3,11 @@ import roslib; roslib.load_manifest('sl_crazyflie')
 import rospy
 
 from pid import PidController
-from std_msgs.msg import Empty
+from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
+import tf
 
 
 class hoverController(object):
@@ -52,7 +53,7 @@ class hoverController(object):
         print "started hover pid controller"
     
     def callback_pose(self, data):
-        if not paused:
+        if not self.paused:
             dt = float(rospy.get_time() - self.lastCall_pose)
             self.lastcall_pose = rospy.get_time()
 
@@ -67,8 +68,8 @@ class hoverController(object):
             y = self.pid_xy_y.update(error_y, dt)
             yaw = self.pid_yaw.update(error_yaw, dt)
 
-            self.pub_att_x.publish(del_x)
-            self.pub_att_y.publish(del_y)
+            self.pub_att_x.publish(x)
+            self.pub_att_y.publish(y)
         
             cmd_twist = Twist()
             cmd_twist.linear.z = thrust
@@ -81,6 +82,7 @@ class hoverController(object):
     def callback_toggle(self, data):
         self.paused = -self.paused 
         self.lastCall_pose = rospy.get_time() #slightly fishy ;)
+        return EmptyResponse()
         
     def callback_setpoint(self, data):
         self.setpoint_pose_z = data.linear.z
@@ -90,7 +92,7 @@ class hoverController(object):
 
     def listener(self):
         rospy.Subscriber('/Robot_1/pose', Pose, self.callback_pose)
-        rospy.Subscriber('/hover/toggle', Empty, self.callback_toggle)
+        rospy.Service('/hover/toggle', Empty, self.callback_toggle)
         rospy.Subscriber('/hover/setpoint', Twist, self.callback_setpoint)
         print "Hover controller spinning"
         rospy.spin()    
