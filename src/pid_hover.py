@@ -17,7 +17,7 @@ class hoverController(object):
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
 
 
-        AFFE = 100
+        AFFE = 150
         KP_thrust = 30 * AFFE
         KI_thrust = 40 * AFFE
         KD_thrust = 500 * AFFE
@@ -35,7 +35,7 @@ class hoverController(object):
 
         self.paused = True
 
-        self.nominal_thrust = 41120.2847958
+        self.nominal_thrust = 45000
         self.max_thrust = 60000
         self.min_thrust = 15000
 
@@ -73,19 +73,25 @@ class hoverController(object):
             error_thrust = data.pose.position.z - self.setpoint_pose_z
 
             thrust = self.nominal_thrust + self.pid_thrust.update(error_thrust, dt)
+            if thrust < self.min_thrust:
+                thrust = self.min_thrust
+            elif thrust > self.max_thrust:
+                thrust = self.max_thrust
+                    
             x = self.pid_xy_x.update(error_x, dt)
             y = self.pid_xy_y.update(error_y, dt)
             yaw = self.pid_yaw.update(error_yaw, dt)
 
 
-            #print 'thrust error', error_thrust, 'thrust', thrust
+            print 'thrust error', error_thrust, 'thrust', thrust, 'nominal thrust', self.nominal_thrust
 
             cmd_twist = Twist()
             cmd_twist.linear.z = thrust
             cmd_twist.linear.x = x
             cmd_twist.linear.y = y
             cmd_twist.angular.z = yaw
-        
+            #self.nominal_thrust = cmd_twist.linear.z
+
             self.pub_cmd_vel.publish(cmd_twist)
 
     def callback_toggle(self, data):
@@ -117,7 +123,7 @@ class hoverController(object):
         rospy.Subscriber('hover/setpoint', Twist, self.callback_setpoint)
         print "Hover controller spinning"
 
-        r = rospy.Rate(5)
+        r = rospy.Rate(10)
         while not rospy.is_shutdown():
             self.cont = True
             r.sleep()
