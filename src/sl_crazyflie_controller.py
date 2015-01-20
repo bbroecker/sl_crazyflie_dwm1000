@@ -23,6 +23,7 @@ class sl_crazyflie_controller:
 
 
 if __name__ == '__main__':
+
     try:
         sl_crazyflie_controller()
     except rospy.ROSInterruptException:

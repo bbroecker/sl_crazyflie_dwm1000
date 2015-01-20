@@ -10,7 +10,7 @@ class Teleop:
 
     def __init__(self):
         self.joy_subscriber_ = rospy.Subscriber("joy", Joy, self.joy_callback)
-        self.velocity_publisher_ = rospy.Publisher("cmd_vel", Twist, queue_size=10)
+        self.velocity_publisher_ = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
         self.on_client_ = rospy.ServiceProxy('on', Empty)
         self.off_client_ = rospy.ServiceProxy('off', Empty)
 

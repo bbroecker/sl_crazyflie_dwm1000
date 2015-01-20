@@ -1,5 +1,4 @@
-#!/usr/bin/env python                                                           
-import roslib; roslib.load_manifest('sl_crazyflie')
+#!/usr/bin/env python
 import rospy
 
 from pid import PidController
@@ -13,11 +12,11 @@ import tf
 class hoverController(object):
  
     def __init__(self):
-        rospy.init_node('pid_hover', anonymous = False)
+        rospy.init_node('pid_hover')
                 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
 
-        KP_thrust = 10
+        KP_thrust = 15000
         KI_thrust = 0
         KD_thrust = 0
         Ilimit_thrust = 0 
@@ -34,16 +33,18 @@ class hoverController(object):
 
         self.paused = True
 
-        self.nominal_thrust = 12500
-        self.max_thrust = 30000
-        self.min_thrust = 10000
+        self.nominal_thrust = 41120.2847958
+        self.max_thrust = 60000
+        self.min_thrust = 15000
 
         self.setpoint_pose_z = 0
         self.setpoint_pose_x = 0 
         self.setpoint_pose_y = 0
-        self.setpoin_pose_yaw = 0
+        self.setpoint_pose_yaw = 0
 
         self.lastCall_pose = rospy.get_time()
+
+        self.lastZ = None
 
         self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, Ilimit_thrust)
         self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
@@ -53,6 +54,7 @@ class hoverController(object):
         print "started hover pid controller"
     
     def callback_pose(self, data):
+        self.lastZ = data.pose.position.z
         if not self.paused:
             dt = float(rospy.get_time() - self.lastCall_pose)
             self.lastcall_pose = rospy.get_time()
@@ -62,7 +64,8 @@ class hoverController(object):
 
             error_x = data.pose.position.x - self.setpoint_pose_x
             error_y = data.pose.position.y - self.setpoint_pose_y
-            euler = tf.transformations.euler_from_quaternion(data.orientation)
+            quat = [data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z,data.pose.orientation.w]
+            euler = tf.transformations.euler_from_quaternion(quat)
             error_yaw = euler[2] - self.setpoint_pose_yaw
             error_thrust = data.pose.position.z - self.setpoint_pose_z
 
@@ -71,9 +74,9 @@ class hoverController(object):
             y = self.pid_xy_y.update(error_y, dt)
             yaw = self.pid_yaw.update(error_yaw, dt)
 
-            self.pub_att_x.publish(x)
-            self.pub_att_y.publish(y)
-        
+
+            #print 'thrust error', error_thrust, 'thrust', thrust
+
             cmd_twist = Twist()
             cmd_twist.linear.z = thrust
             cmd_twist.linear.x = x
@@ -83,8 +86,19 @@ class hoverController(object):
             self.pub_cmd_vel.publish(cmd_twist)
 
     def callback_toggle(self, data):
-        self.paused = -self.paused 
+        self.paused = not self.paused
         self.lastCall_pose = rospy.get_time() #slightly fishy ;)
+        return EmptyResponse()
+
+    def callback_toggle_hover(self, data):
+        #self.paused = not self.paused
+        self.lastCall_pose = rospy.get_time() #slightly fishy ;)
+        self.setpoint_pose_z = self.lastZ
+        self.setpoint_pose_x = 0
+        self.setpoint_pose_y = 0
+        self.setpoin_pose_yaw = 0
+        print '-'*10
+        print self.paused, self.lastZ
         return EmptyResponse()
         
     def callback_setpoint(self, data):
@@ -95,8 +109,9 @@ class hoverController(object):
 
     def listener(self):
         rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_pose)
-        rospy.Service('/hover/toggle', Empty, self.callback_toggle)
-        rospy.Subscriber('/hover/setpoint', Twist, self.callback_setpoint)
+        rospy.Service('hover/toggle', Empty, self.callback_toggle)
+        rospy.Service('hover/toggle_hover', Empty, self.callback_toggle_hover)
+        rospy.Subscriber('hover/setpoint', Twist, self.callback_setpoint)
         print "Hover controller spinning"
         rospy.spin()    
         
