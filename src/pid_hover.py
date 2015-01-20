@@ -5,7 +5,7 @@ import rospy
 from pid import PidController
 from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import Twist
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point
 import tf
 
@@ -56,12 +56,15 @@ class hoverController(object):
         if not self.paused:
             dt = float(rospy.get_time() - self.lastCall_pose)
             self.lastcall_pose = rospy.get_time()
+            #better?
+            #dt = float(data.header.stamp - self.lastCall_pose)
+            #self.lastcall_pose = data.header.stamp
 
-            error_x = data.position.x - self.setpoint_pose_x
-            error_y = data.position.y - self.setpoint_pose_y
+            error_x = data.pose.position.x - self.setpoint_pose_x
+            error_y = data.pose.position.y - self.setpoint_pose_y
             euler = tf.transformations.euler_from_quaternion(data.orientation)
             error_yaw = euler[2] - self.setpoint_pose_yaw
-            error_thrust = data.position.z - self.setpoint_pose_z
+            error_thrust = data.pose.position.z - self.setpoint_pose_z
 
             thrust = self.nominal_thrust + self.pid_thrust.update(error_thrust, dt)
             x = self.pid_xy_x.update(error_x, dt)
@@ -91,7 +94,7 @@ class hoverController(object):
         self.setpoin_pose_yaw = data.angular.z        
 
     def listener(self):
-        rospy.Subscriber('/Robot_1/pose', Pose, self.callback_pose)
+        rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_pose)
         rospy.Service('/hover/toggle', Empty, self.callback_toggle)
         rospy.Subscriber('/hover/setpoint', Twist, self.callback_setpoint)
         print "Hover controller spinning"
