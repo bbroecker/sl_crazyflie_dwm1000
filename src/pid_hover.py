@@ -6,7 +6,11 @@ from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point
+from std_msgs.msg import Float32
+from dynamic_reconfigure.server import Server
+from sl_crazyflie.cfg import pid_cfgConfig
 import tf
+
 
 
 class hoverController(object):
@@ -15,6 +19,7 @@ class hoverController(object):
         rospy.init_node('pid_hover')
                 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
+        self.pub_setpoint = rospy.Publisher("hover/setpoint_z", Float32, queue_size=10)
 
 
         AFFE = 100 # 150
@@ -22,7 +27,7 @@ class hoverController(object):
         KD_thrust = 500 * AFFE #500
         KI_thrust = 30 * AFFE #40
 
-        Ilimit_thrust = 0 
+        self.Ilimit_thrust = 1000 * AFFE
     
         KP_xy = 1
         KI_xy = 10
@@ -50,7 +55,7 @@ class hoverController(object):
         self.lastZ = None
         self.cont = None
 
-        self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, Ilimit_thrust)
+        self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, self.Ilimit_thrust)
         self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
@@ -94,6 +99,9 @@ class hoverController(object):
             #self.nominal_thrust = cmd_twist.linear.z
 
             self.pub_cmd_vel.publish(cmd_twist)
+            msg = Float32()
+            msg.data = self.setpoint_pose_z
+            self.pub_setpoint.publish(msg)
 
     def callback_toggle(self, data):
         self.paused = not self.paused
@@ -117,7 +125,26 @@ class hoverController(object):
         self.setpoint_pose_y = data.linear.y
         self.setpoin_pose_yaw = data.angular.z        
 
+    
+    def callback_dynreconf(self, config, level):
+        #rospy.loginfo("""Reconfiugre Request: {int_param}, {double_param},\ 
+        #{str_param}, {bool_param}, {size}""".format(**config))
+        KP_thrust = config["KP_thrust"]
+        KI_thrust = config["KI_thrust"]
+        KD_thrust = config["KD_thrust"]
+        self.nominal_thrust = config["Nom_thrust"]
+        self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, self.Ilimit_thrust)
+
+        #self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
+        #self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
+        #self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
+
+        #print config
+        #print level
+        return config
+
     def listener(self):
+        self.dyn_server = Server(pid_cfgConfig, self.callback_dynreconf)
         rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_pose)
         rospy.Service('hover/toggle', Empty, self.callback_toggle)
         rospy.Service('hover/toggle_hover', Empty, self.callback_toggle_hover)

@@ -9,6 +9,11 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   std_srvs
+  dynamic_reconfigure
+)
+
+generate_dynamic_reconfigure_options(
+  cfg/pid_cfg.cfg
 )
 
 ## System dependencies are found with CMake's conventions
