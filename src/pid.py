@@ -44,6 +44,8 @@ class PidController(object):
         self.Imax = Ilimit
         self.Imin = -Ilimit
         self.zero()
+        print 'Create new pid controller'
+        print KP,KI,KD
         
     def zero(self):
         self.i_term = 0.0
@@ -61,28 +63,53 @@ class PidController(object):
             # TODO: finite differencing
             if dt > 0.0:
                 self.d_error = (self.p_error - self.p_error_last) / dt
-                self.p_error_last = self.p_error
         else:
             self.d_error = error_dot
+
+        #PID CHANGE CRAZYFLIE fishy
+        if self.d_error < 0:
+            self.d_error = 0
+        #------------------
+
             
         if dt == 0:
             output = 0.0
+            print 'dt == 0 should not happen '
         else:
             p_term = self.KP*self.p_error
-            self.i_error = self.i_error + dt*self.p_error
+            # old
+            # self.i_error = self.i_error + dt*self.p_error
+            #PID CHANGE CRAZYFLIE
+            self.i_error = self.i_error + self.p_error * dt
+            print 'dt is ', dt
+            #-----
             i_term = self.KI*self.i_error
-            
+            print 'iTerm ', i_term
             if i_term > self.Imax:
                 i_term = self.Imax
-                self.i_error = i_term/self.KI
+                print 'I value is max'
+                #PID CHANGE CRAZYFLIE
+                #self.i_error = i_term/self.KI
+                #----
             elif i_term < self.Imin:
+                print 'I value is min', i_term
                 i_term = self.Imin
-                self.i_error = i_term/self.KI
+
+                #PID CHANGE CRAZYFLIE
+                #self.i_error = i_term/self.KI
+                #-------
                 
             d_term = self.KD*self.d_error
-            output = -p_term - i_term - d_term
+            #PID CHANGE CRAZYFLIE
+            output = p_term + i_term + d_term
+            #------
+            #old
+            #output = -p_term - i_term - d_term
             self.p_term, self.i_term, self.d_term = p_term, i_term, d_term # maybe useful for debugging
             self.current_output = output
+
+        self.p_error_last = self.p_error
+
         return output
     
     def get_current_cmd(self):

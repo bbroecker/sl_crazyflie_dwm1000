@@ -10,7 +10,7 @@ from std_msgs.msg import Float32
 from dynamic_reconfigure.server import Server
 from sl_crazyflie.cfg import pid_cfgConfig
 import tf
-
+import copy
 
 
 class hoverController(object):
@@ -20,6 +20,8 @@ class hoverController(object):
                 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
         self.pub_setpoint = rospy.Publisher("hover/setpoint_z", Float32, queue_size=10)
+        self.pub_setpointdz = rospy.Publisher("hover/setpoint_dz", Float32, queue_size=10)
+        self.pub_currentdz = rospy.Publisher("hover/current_dz", Float32, queue_size=10)
 
 
         AFFE = 100 # 150
@@ -27,7 +29,7 @@ class hoverController(object):
         KD_thrust = 500 * AFFE #500
         KI_thrust = 30 * AFFE #40
 
-        self.Ilimit_thrust = 1000 * AFFE
+        self.Ilimit_thrust = 10000
     
         KP_xy = 1
         KI_xy = 10
@@ -41,8 +43,10 @@ class hoverController(object):
 
         self.paused = True
 
+        self.max_percentage = 1.0
+
         self.nominal_thrust = 45000
-        self.max_thrust = 60000
+        self.max_thrust = 60000 * self.max_percentage
         self.min_thrust = 15000
 
         self.setpoint_pose_z = 0
@@ -54,29 +58,58 @@ class hoverController(object):
 
         self.lastZ = None
         self.cont = None
+        self.last_msg = None
+        self.prev_height = None
+
 
         self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, self.Ilimit_thrust)
         self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
+        self.error_thrust = 0
 
         print "started hover pid controller"
     
     def callback_pose(self, data):
         self.lastZ = data.pose.position.z
-        if not self.paused and self.cont:
+        self.last_msg = data
+
+    def update(self, data):
+        if not self.paused:
             dt = float(rospy.get_time() - self.lastCall_pose)
-            self.lastcall_pose = rospy.get_time()
+            self.lastCall_pose = rospy.get_time()
             #better?
             #dt = float(data.header.stamp - self.lastCall_pose)
             #self.lastcall_pose = data.header.stamp
 
             error_x = data.pose.position.x - self.setpoint_pose_x
             error_y = data.pose.position.y - self.setpoint_pose_y
-            quat = [data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z,data.pose.orientation.w]
+            quat = [data.pose.orientation.x, data.pose.orientation.y, data.pose.orientation.z, data.pose.orientation.w]
             euler = tf.transformations.euler_from_quaternion(quat)
             error_yaw = euler[2] - self.setpoint_pose_yaw
-            error_thrust = data.pose.position.z - self.setpoint_pose_z
+            #PID CHANGE CRAZYFLIE
+           # error_thrust = self.setpoint_pose_z - data.pose.position.z
+            climbrate = (self.prev_height - data.pose.position.z)*0.1
+            #error_thrust = self.prev_height - data.pose.position.z
+
+            error_thrust = (self.setpoint_pose_z - data.pose.position.z)*0.05
+            thrust_cap = 0.05
+            if error_thrust > thrust_cap:
+                error_thrust = thrust_cap
+            elif error_thrust < -thrust_cap:
+                error_thrust = -thrust_cap
+
+            error_thrust = climbrate - error_thrust
+
+            self.pub_currentdz.publish(Float32(data.pose.position.z - self.prev_height))
+            self.pub_setpointdz.publish(Float32(error_thrust))
+
+
+            self.prev_height = data.pose.position.z
+            #-----
+            #old
+            #error_thrust = data.pose.position.z - self.setpoint_pose_z
+            #-----
 
             thrust = self.nominal_thrust + self.pid_thrust.update(error_thrust, dt)
             if thrust < self.min_thrust:
@@ -84,24 +117,25 @@ class hoverController(object):
             elif thrust > self.max_thrust:
                 thrust = self.max_thrust
                     
-            x = self.pid_xy_x.update(error_x, dt)
-            y = self.pid_xy_y.update(error_y, dt)
-            yaw = self.pid_yaw.update(error_yaw, dt)
+            #x = self.pid_xy_x.update(error_x, dt)
+            #y = self.pid_xy_y.update(error_y, dt)
+            #yaw = self.pid_yaw.update(error_yaw, dt)
 
 
             print 'thrust error', error_thrust, 'thrust', thrust, 'nominal thrust', self.nominal_thrust
 
             cmd_twist = Twist()
             cmd_twist.linear.z = thrust
-            cmd_twist.linear.x = x
-            cmd_twist.linear.y = y
-            cmd_twist.angular.z = yaw
+            #cmd_twist.linear.x = x
+            #cmd_twist.linear.y = y
+            #sd_twist.angular.z = yaw
             #self.nominal_thrust = cmd_twist.linear.z
 
             self.pub_cmd_vel.publish(cmd_twist)
             msg = Float32()
             msg.data = self.setpoint_pose_z
             self.pub_setpoint.publish(msg)
+
 
     def callback_toggle(self, data):
         self.paused = not self.paused
@@ -111,10 +145,12 @@ class hoverController(object):
     def callback_toggle_hover(self, data):
         #self.paused = not self.paused
         self.lastCall_pose = rospy.get_time() #slightly fishy ;)
+        self.prev_height = self.lastZ
         self.setpoint_pose_z = self.lastZ
         self.setpoint_pose_x = 0
         self.setpoint_pose_y = 0
         self.setpoin_pose_yaw = 0
+        self.pid_thrust.zero()
         print '-'*10
         print self.paused, self.lastZ
         return EmptyResponse()
@@ -135,6 +171,8 @@ class hoverController(object):
         self.nominal_thrust = config["Nom_thrust"]
         self.pid_thrust = PidController(KP_thrust, KI_thrust, KD_thrust, self.Ilimit_thrust)
 
+
+
         #self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         #self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         #self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
@@ -153,7 +191,7 @@ class hoverController(object):
 
         r = rospy.Rate(10)
         while not rospy.is_shutdown():
-            self.cont = True
+            self.update(copy.copy(self.last_msg))
             r.sleep()
         
 
