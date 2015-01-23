@@ -22,7 +22,7 @@ class MocapController:
         self.teleop_last_time = None
 
         self.hover_stop_srv = rospy.ServiceProxy('hover/stop', Empty)
-        self.hold_position_start_srv = rospy.ServiceProxy('hover/start_position_hold', Empty)
+        self.hold_position_start_srv = rospy.ServiceProxy('hover/start_hold_position', Empty)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
 
         self.joy_subscriber_ = rospy.Subscriber("joy", Joy, self.joy_callback)

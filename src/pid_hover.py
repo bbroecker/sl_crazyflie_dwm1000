@@ -13,7 +13,13 @@ import copy
 #constants
 # update 30Hz
 RATE = 50
+MAX_THRUST = 65000.0
 
+def thrust_to_percent(thrust):
+    return thrust/MAX_THRUST
+
+def percent_to_thrust(percent):
+    return percent * MAX_THRUST
 
 class HoverController(object):
     def __init__(self):
@@ -23,10 +29,11 @@ class HoverController(object):
         self.pub_target_height = rospy.Publisher("hover/target_height", Float32, queue_size=10)
         self.pub_target_climb_rate = rospy.Publisher("hover/target_climb_rate", Float32, queue_size=10)
         self.pub_current_climb_rate = rospy.Publisher("hover/current_climb_rate", Float32, queue_size=10)
+        self.pub_thrust_percentage = rospy.Publisher("hover/thrust_percentage", Float32, queue_size=1)
 
-        kp_thrust = 20
-        kd_thrust = 500
-        ki_thrust = 30
+        kp_thrust = 2
+        kd_thrust = 0
+        ki_thrust = 0
 
         kp_climb_rate = 10
         ki_climb_rate = 0
@@ -40,11 +47,11 @@ class HoverController(object):
 
         self.paused = True
 
-        self.max_percentage = 1.0
+        self.max_percentage = 0.9
 
-        self.nominal_thrust = 45000
-        self.max_thrust = 60000 * self.max_percentage
-        self.min_thrust = 15000
+        self.nominal_thrust = 0.7
+        self.max_thrust = self.max_percentage
+        self.min_thrust = 0.25
 
         self.target_altitude = 0
         self.max_altitude_error = 0
@@ -122,8 +129,10 @@ class HoverController(object):
             current_climb_rate = (current_altitude - self.prev_altitude) / dt
             #current_climb_rate_error = target_climb_rate - current_climb_rate
 
+            climb_rate_error = target_climb_rate - current_climb_rate
+
             #climb_rate to thrust pid
-            thrust = self.pid_thrust.update(current_climb_rate, dt)
+            thrust = self.pid_thrust.update(climb_rate_error, dt)
             current_thrust_cmd = self.nominal_thrust + thrust
 
             if current_thrust_cmd < self.min_thrust:
@@ -136,7 +145,7 @@ class HoverController(object):
             #yaw = self.pid_yaw.update(error_yaw, dt)
 
             cmd_twist = Twist()
-            cmd_twist.linear.z = current_thrust_cmd
+            cmd_twist.linear.z = percent_to_thrust(current_thrust_cmd)
             #cmd_twist.linear.x = x
             #cmd_twist.linear.y = y
             #sd_twist.angular.z = yaw
@@ -150,6 +159,7 @@ class HoverController(object):
             self.pub_target_height.publish(Float32(self.target_altitude))
             self.pub_current_climb_rate.publish(Float32(current_climb_rate))
             self.pub_target_climb_rate.publish(Float32(target_climb_rate))
+            self.pub_thrust_percentage.publish(Float32(current_thrust_cmd))
 
     def callback_stop(self, req):
         self.paused = True
@@ -190,6 +200,8 @@ class HoverController(object):
         self.nominal_thrust = config["Nom_thrust"]
         self.pid_thrust.set_pid_parameters(kp_thrust, ki_thrust, kd_thrust)
         self.pid_climb_rate.set_pid_parameters(kp_climb_rate, ki_climb_rate, kd_climb_rate)
+
+        rospy.loginfo("kp %f ki %f kd %f", kp_thrust, ki_thrust, kd_thrust)
         # self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         # self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
         #self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)

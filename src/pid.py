@@ -77,7 +77,6 @@ class PidController(object):
             self.ki = ki
         if kd:
             self.kd = kd
-        rospy.loginfo('Set new pid parameters to Kp %f Ki %f Kd %f', self.kp, self.ki, self.kd)
         self.reset_pid()
         
     def update(self, error, dt=0.0, error_dot=None):
