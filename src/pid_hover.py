@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+import math
 import rospy
-
+from tf import transformations
 from pid import PidController
 from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import Twist
@@ -8,18 +9,29 @@ from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Float32
 from dynamic_reconfigure.server import Server
 from sl_crazyflie.cfg import pid_cfgConfig
+import numpy as np
 import copy
 
-#constants
+# constants
 # update 30Hz
 RATE = 50
 MAX_THRUST = 65000.0
+MAX_YAW_DIFF = math.pi / 8
+
 
 def thrust_to_percent(thrust):
-    return thrust/MAX_THRUST
+    return thrust / MAX_THRUST
+
 
 def percent_to_thrust(percent):
     return percent * MAX_THRUST
+
+
+def get_yaw_from_msg(msg):
+    q = [msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w]
+    euler = transformations.euler_from_quaternion(q)
+    return euler[2]
+
 
 class HoverController(object):
     def __init__(self):
@@ -31,59 +43,54 @@ class HoverController(object):
         self.pub_current_climb_rate = rospy.Publisher("hover/current_climb_rate", Float32, queue_size=10)
         self.pub_thrust_percentage = rospy.Publisher("hover/thrust_percentage", Float32, queue_size=1)
 
-        kp_thrust = 2
-        kd_thrust = 0
-        ki_thrust = 0
+        #std parameters
+        self.paused = True
+        self.last_update_time = rospy.get_time()
+        self.last_pose_msg = None
 
-        kp_climb_rate = 10
+        #pid altitude
+        kp_thrust = 0.6
+        ki_thrust = 1.2
+        kd_thrust = 0
+
+        kp_climb_rate = 0.5
         ki_climb_rate = 0
         kd_climb_rate = 0
 
-        self.i_limit_thrust_min = -10000
-        self.i_limit_thrust_max = 10000
-
-        self.i_climb_rate_min = -10000
-        self.i_climb_rate_max = 10000
-
-        self.paused = True
-
-        self.max_percentage = 0.9
-
         self.nominal_thrust = 0.7
-        self.max_thrust = self.max_percentage
+        self.max_thrust = 0.9
         self.min_thrust = 0.25
-
         self.target_altitude = 0
-        self.max_altitude_error = 0
-
-        self.target_pose_x = 0
-        self.target_pose_y = 0
-        self.target_pose_yaw = 0
-
-        self.last_update_time = rospy.get_time()
-
-        self.last_pose_msg = None
+        self.max_altitude_error = 0.5
         self.prev_altitude = None
 
-        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust, i_min=self.i_limit_thrust_min,
-                                        i_max=self.i_limit_thrust_max)
+        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust)
+        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate)
 
-        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate,
-                                            i_min=self.i_climb_rate_min, i_max=self.i_climb_rate_max)
+        #pid xy
+        kp_xy = 2.
+        ki_xy = 4.
+        kd_xy = 0
 
-        self.error_thrust = 0
+        self.target_2d_pose = None
+        self.max_xy_error = 0.5
 
-        # self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
-        # self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
+        self.pitch_roll_cap = 15.0
+        self.pid_xy_pitch = PidController(kp_xy, ki_xy, kd_xy)
+        self.pid_xy_roll = PidController(kp_xy, ki_xy, kd_xy)
+
+        self.last_yaw = None
+
         # self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
+        #self.target_pose_yaw = 0
 
         self.dyn_server = Server(pid_cfgConfig, self.callback_dynreconf)
-        rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_optitrack_pose)
 
         rospy.Service('hover/stop', Empty, self.callback_stop)
         rospy.Service('hover/start_hold_position', Empty, self.callback_hold_position)
         # toDo make service call for target pose
-        # rospy.Subscriber('hover/setpoint', Twist, self.callback_set_target_pose)
+
+        rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_optitrack_pose)
 
         rospy.loginfo("Started hover pid controller")
 
@@ -103,63 +110,88 @@ class HoverController(object):
             dt = float(current_time - self.last_update_time)
             self.last_update_time = current_time
 
-            #toDo x,y and yaw
-            #error_x = current_pose_msg.pose.position.x - self.target_pose_x
-            #error_y = current_pose_msg.pose.position.y - self.target_pose_y
-            #quat = [current_pose_msg.pose.orientation.x, current_pose_msg.pose.orientation.y,
-            #current_pose_msg.pose.orientation.z, current_pose_msg.pose.orientation.w]
-            #euler = tf.transformations.euler_from_quaternion(quat)
-            #error_yaw = euler[2] - self.target_pose_yaw
-
-            # PID CHANGE CRAZYFLIE
-            # error_thrust = self.setpoint_pose_z - data.pose.position.z
-
-            #ALTITUDE TO CLIMB_RATE PID
             current_altitude = current_pose_msg.pose.position.z
-            current_target_altitude_error = self.target_altitude - current_altitude
+            current_thrust_cmd = self.update_thrust(current_altitude, dt)
 
-            if current_target_altitude_error > self.max_altitude_error:
-                current_target_altitude_error = self.max_altitude_error
+            #toDo yaw
+            current_yaw = get_yaw_from_msg(current_pose_msg)
+            x = 0
+            y = 0
 
-            if current_target_altitude_error < -self.max_altitude_error:
-                current_target_altitude_error = -self.max_altitude_error
+            if abs(current_yaw - self.last_yaw) < MAX_YAW_DIFF:
+                current_position = np.array([current_pose_msg.pose.position.x, current_pose_msg.pose.position.y])
+                target_vector = self.target_2d_pose - current_position
+                #target_vector_yaw = math.atan2(target_vector[1], target_vector[0])
+                diff_yaw = -current_yaw
+                rotated_target_x = target_vector[0] * math.cos(diff_yaw) - target_vector[1] * math.sin(diff_yaw)
+                rotated_target_y = target_vector[0] * math.sin(diff_yaw) + target_vector[1] * math.cos(diff_yaw)
+                x = self.update_xy(rotated_target_x, dt, self.pid_xy_pitch)
+                y = self.update_xy(rotated_target_y, dt, self.pid_xy_roll)
 
-            target_climb_rate = self.pid_climb_rate.update(current_target_altitude_error, dt)
-
-            current_climb_rate = (current_altitude - self.prev_altitude) / dt
-            #current_climb_rate_error = target_climb_rate - current_climb_rate
-
-            climb_rate_error = target_climb_rate - current_climb_rate
-
-            #climb_rate to thrust pid
-            thrust = self.pid_thrust.update(climb_rate_error, dt)
-            current_thrust_cmd = self.nominal_thrust + thrust
-
-            if current_thrust_cmd < self.min_thrust:
-                current_thrust_cmd = self.min_thrust
-            elif current_thrust_cmd > self.max_thrust:
-                current_thrust_cmd = self.max_thrust
-
-            #x = self.pid_xy_x.update(error_x, dt)
-            #y = self.pid_xy_y.update(error_y, dt)
-            #yaw = self.pid_yaw.update(error_yaw, dt)
+                rospy.loginfo("pitch %f, yaw %f, current yaw %f", x, y, current_yaw)
+                rospy.loginfo("target vector %s roated target= %f, %f", str(target_vector), rotated_target_x, rotated_target_y)
+            else:
+                rospy.logwarn('yaw flipped %f', abs(current_yaw - self.last_yaw))
 
             cmd_twist = Twist()
             cmd_twist.linear.z = percent_to_thrust(current_thrust_cmd)
-            #cmd_twist.linear.x = x
-            #cmd_twist.linear.y = y
+            #TODO: check if x and y are correct!!
+            cmd_twist.linear.x = x
+            cmd_twist.linear.y = y
             #sd_twist.angular.z = yaw
             #self.nominal_thrust = cmd_twist.linear.z
+            self.last_yaw = current_yaw
 
             self.prev_altitude = current_altitude
             # publish velocity
             self.pub_cmd_vel.publish(cmd_twist)
 
+    def update_xy(self, error, dt, pid):
+        current_error = error
+        if current_error > self.max_xy_error:
+            current_error = self.max_xy_error
+        elif current_error < - self.max_xy_error:
+            current_error = -self.max_xy_error
+
+        roll_pitch_cmd = pid.update(current_error, dt)
+
+        if roll_pitch_cmd > self.pitch_roll_cap:
+            roll_pitch_cmd = self.pitch_roll_cap
+        elif roll_pitch_cmd < - self.pitch_roll_cap:
+            roll_pitch_cmd = -self.pitch_roll_cap
+
+        return roll_pitch_cmd
+
+    def update_thrust(self, current_altitude, dt):
+        #ALTITUDE TO CLIMB_RATE PID
+        current_target_altitude_error = self.target_altitude - current_altitude
+
+        if current_target_altitude_error > self.max_altitude_error:
+            current_target_altitude_error = self.max_altitude_error
+
+        if current_target_altitude_error < -self.max_altitude_error:
+            current_target_altitude_error = -self.max_altitude_error
+
+        target_climb_rate = self.pid_climb_rate.update(current_target_altitude_error, dt)
+        current_climb_rate = (current_altitude - self.prev_altitude) / dt
+        climb_rate_error = target_climb_rate - current_climb_rate
+
+        #climb_rate to thrust pid
+        thrust = self.pid_thrust.update(climb_rate_error, dt)
+        current_thrust_cmd = self.nominal_thrust + thrust
+
+        if current_thrust_cmd < self.min_thrust:
+            current_thrust_cmd = self.min_thrust
+        elif current_thrust_cmd > self.max_thrust:
+            current_thrust_cmd = self.max_thrust
+
             #publish debug msgs
-            self.pub_target_height.publish(Float32(self.target_altitude))
-            self.pub_current_climb_rate.publish(Float32(current_climb_rate))
-            self.pub_target_climb_rate.publish(Float32(target_climb_rate))
-            self.pub_thrust_percentage.publish(Float32(current_thrust_cmd))
+        self.pub_target_height.publish(Float32(self.target_altitude))
+        self.pub_current_climb_rate.publish(Float32(current_climb_rate))
+        self.pub_target_climb_rate.publish(Float32(target_climb_rate))
+        self.pub_thrust_percentage.publish(Float32(current_thrust_cmd))
+
+        return current_thrust_cmd
 
     def callback_stop(self, req):
         self.paused = True
@@ -170,9 +202,8 @@ class HoverController(object):
         self.last_update_time = rospy.get_time()
         self.prev_altitude = self.last_pose_msg.pose.position.z
         self.target_altitude = self.prev_altitude
-        self.target_pose_x = 0
-        self.target_pose_y = 0
-        self.target_pose_yaw = 0
+        self.target_2d_pose = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
+        self.last_yaw = get_yaw_from_msg(self.last_pose_msg)
         self.pid_thrust.reset_pid()
         self.paused = False
 
@@ -180,33 +211,28 @@ class HoverController(object):
 
         return EmptyResponse()
 
-    def callback_set_target_pose(self, data):
-        self.target_altitude = data.linear.z
-        self.target_pose_x = data.linear.x
-        self.target_pose_y = data.linear.y
-        self.target_pose_yaw = data.angular.z
-
     def callback_dynreconf(self, config, level):
-
         kp_thrust = config["KP_thrust"]
         ki_thrust = config["KI_thrust"]
         kd_thrust = config["KD_thrust"]
-
         kp_climb_rate = config['KP_climb_rate']
         ki_climb_rate = config['KI_climb_rate']
         kd_climb_rate = config['KD_climb_rate']
-        self.max_altitude_error = config['max_altitude_error']
 
+        kp_xy = config['KP_xy']
+        ki_xy = config['KI_xy']
+        kd_xy = config['KD_xy']
+
+        self.max_altitude_error = config['max_altitude_error']
         self.nominal_thrust = config["Nom_thrust"]
+
         self.pid_thrust.set_pid_parameters(kp_thrust, ki_thrust, kd_thrust)
         self.pid_climb_rate.set_pid_parameters(kp_climb_rate, ki_climb_rate, kd_climb_rate)
 
-        rospy.loginfo("kp %f ki %f kd %f", kp_thrust, ki_thrust, kd_thrust)
-        # self.pid_xy_x = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
-        # self.pid_xy_y = PidController(KP_xy, KI_xy, KD_xy, Ilimit_xy)
-        #self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
-        #print config
-        #print level
+        self.pid_xy_pitch.set_pid_parameters(kp_xy, ki_xy, kd_xy)
+        self.pid_xy_roll.set_pid_parameters(kp_xy, ki_xy, kd_xy)
+
+        rospy.loginfo("kp %f ki %f kd %f", kp_xy, ki_xy, kd_xy)
         return config
 
 

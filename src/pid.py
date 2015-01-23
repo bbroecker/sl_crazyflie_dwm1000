@@ -53,7 +53,7 @@ class PidController(object):
     d_error = 0.0
     current_output = 0.0
 
-    def __init__(self, kp, ki, kd, i_min=0, i_max=0):
+    def __init__(self, kp, ki, kd, i_min=None, i_max=None):
         self.set_pid_parameters(kp, ki, kd)
         self.i_max = i_max
         self.i_min = i_min
@@ -107,11 +107,11 @@ class PidController(object):
         self.i_error += self.p_error * dt
         i_term = self.ki * self.i_error
 
-        if i_term > self.i_max:
+        if self.i_max and i_term > self.i_max:
             i_term = self.i_max
             rospy.logwarn('I value is max %f', i_term)
 
-        elif i_term < self.i_min:
+        elif self.i_min and i_term < self.i_min:
             rospy.logwarn('I value is min %f', i_term)
             i_term = self.i_min
 

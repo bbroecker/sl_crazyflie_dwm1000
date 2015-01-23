@@ -39,7 +39,10 @@ class MocapController:
             twist = self.cmd_vel_teleop
             if self.pid_active and self.pid_received:
                 if (cur_time - self.pid_last_time).to_sec() < TIME_OUT:
+                    #pass
                     twist.linear.z = self.cmd_vel_pid.linear.z
+                    twist.linear.y = self.cmd_vel_pid.linear.y
+                    twist.linear.x = self.cmd_vel_pid.linear.x
                 else:
                     twist = Twist()
             else:
