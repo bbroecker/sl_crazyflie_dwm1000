@@ -29,6 +29,7 @@
 #  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 #  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
+import rospy
 
 
 class PidController(object):
@@ -36,18 +37,30 @@ class PidController(object):
     Very simple PID controller class. Inspired by, and similar interface to,
     pid.cpp from pr2_controllers/control_toolbox
     """
-    def __init__(self, KP=0, KI=0, KD=0, Ilimit=0):
-        self.KP = KP
-        self.KI = KI
-        self.KD = KD
-        assert Ilimit >= 0
-        self.Imax = Ilimit
-        self.Imin = -Ilimit
-        self.zero()
-        print 'Create new pid controller'
-        print KP,KI,KD
+
+    """
+    Initialize values
+    """
+    kp = 0
+    ki = 0
+    kd = 0
+    i_term = 0.0
+    p_term = 0.0
+    d_term = 0.0
+    p_error_last = 0.0
+    p_error = 0.0
+    i_error = 0.0
+    d_error = 0.0
+    current_output = 0.0
+
+    def __init__(self, kp, ki, kd, i_min=0, i_max=0):
+        self.set_pid_parameters(kp, ki, kd)
+        self.i_max = i_max
+        self.i_min = i_min
+
+        print kp, ki, kd
         
-    def zero(self):
+    def reset_pid(self):
         self.i_term = 0.0
         self.p_term = 0.0
         self.d_term = 0.0
@@ -56,59 +69,62 @@ class PidController(object):
         self.i_error = 0.0
         self.d_error = 0.0
         self.current_output = 0.0
+
+    def set_pid_parameters(self, kp=None, ki=None, kd=None):
+        if kp:
+            self.kp = kp
+        if ki:
+            self.ki = ki
+        if kd:
+            self.kd = kd
+        rospy.loginfo('Set new pid parameters to Kp %f Ki %f Kd %f', self.kp, self.ki, self.kd)
+        self.reset_pid()
         
     def update(self, error, dt=0.0, error_dot=None):
+        if dt == 0:
+            output = 0.0
+            rospy.logerr('dt == 0 should not happen ')
+            return output
+
+        #p-term calc
         self.p_error = error
+        p_term = self.kp * self.p_error
+
+        ##d-term calculation
         if error_dot is None:
             # TODO: finite differencing
             if dt > 0.0:
                 self.d_error = (self.p_error - self.p_error_last) / dt
         else:
             self.d_error = error_dot
+        d_term = self.kd * self.d_error
 
         #PID CHANGE CRAZYFLIE fishy
-        if self.d_error < 0:
-            self.d_error = 0
+        #if self.d_error < 0:
+        #   self.d_error = 0
         #------------------
 
-            
-        if dt == 0:
-            output = 0.0
-            print 'dt == 0 should not happen '
-        else:
-            p_term = self.KP*self.p_error
-            # old
-            # self.i_error = self.i_error + dt*self.p_error
-            #PID CHANGE CRAZYFLIE
-            self.i_error = self.i_error + self.p_error * dt
-            print 'dt is ', dt
-            #-----
-            i_term = self.KI*self.i_error
-            print 'iTerm ', i_term
-            if i_term > self.Imax:
-                i_term = self.Imax
-                print 'I value is max'
-                #PID CHANGE CRAZYFLIE
-                #self.i_error = i_term/self.KI
-                #----
-            elif i_term < self.Imin:
-                print 'I value is min', i_term
-                i_term = self.Imin
+        #i-term calc
+        self.i_error += self.p_error * dt
+        i_term = self.ki * self.i_error
 
-                #PID CHANGE CRAZYFLIE
-                #self.i_error = i_term/self.KI
-                #-------
-                
-            d_term = self.KD*self.d_error
-            #PID CHANGE CRAZYFLIE
-            output = p_term + i_term + d_term
-            #------
-            #old
-            #output = -p_term - i_term - d_term
-            self.p_term, self.i_term, self.d_term = p_term, i_term, d_term # maybe useful for debugging
-            self.current_output = output
+        if i_term > self.i_max:
+            i_term = self.i_max
+            rospy.logwarn('I value is max %f', i_term)
+
+        elif i_term < self.i_min:
+            rospy.logwarn('I value is min %f', i_term)
+            i_term = self.i_min
 
         self.p_error_last = self.p_error
+
+        #PID CHANGE CRAZYFLIE
+        output = p_term + i_term + d_term
+        #------
+        #old
+        #output = -p_term - i_term - d_term
+        self.p_term, self.i_term, self.d_term = p_term, i_term, d_term # maybe useful for debugging
+        self.current_output = output
 
         return output
     
