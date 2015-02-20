@@ -33,6 +33,13 @@ def get_yaw_from_msg(msg):
     return euler[2]
 
 
+def rotate_vector_by_angle(vector_x, vector_y, angle):
+    x = vector_x * math.cos(angle) - vector_y * math.sin(angle)
+    y = vector_x * math.sin(angle) + vector_y * math.cos(angle)
+
+    return x, y
+
+
 class HoverController(object):
     def __init__(self):
         rospy.init_node('pid_hover')
@@ -63,6 +70,7 @@ class HoverController(object):
         self.target_altitude = 0
         self.max_altitude_error = 0.5
         self.prev_altitude = None
+        self.prev_position = None
 
         self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust)
         self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate)
@@ -72,12 +80,19 @@ class HoverController(object):
         ki_xy = 4.
         kd_xy = 0
 
+        kp_xy_speed = 0.5
+        ki_xy_speed = 0.
+        kd_xy_speed = 0.
+
         self.target_2d_pose = None
         self.max_xy_error = 0.5
 
         self.pitch_roll_cap = 15.0
         self.pid_xy_pitch = PidController(kp_xy, ki_xy, kd_xy)
         self.pid_xy_roll = PidController(kp_xy, ki_xy, kd_xy)
+        self.pid_xy_x_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed)
+        self.pid_xy_y_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed)
+
 
         self.last_yaw = None
 
@@ -104,6 +119,13 @@ class HoverController(object):
             self.update(copy.copy(self.last_pose_msg))
             r.sleep()
 
+    def limit_angle(self, angle):
+        if angle > math.pi:
+            angle -= 2 * math.pi
+        elif angle < -math.pi:
+            angle += 2 * math.pi
+        return angle
+
     def update(self, current_pose_msg):
         if not self.paused:
             current_time = rospy.get_time()
@@ -112,48 +134,65 @@ class HoverController(object):
 
             current_altitude = current_pose_msg.pose.position.z
             current_thrust_cmd = self.update_thrust(current_altitude, dt)
+            current_position = np.array([current_pose_msg.pose.position.x, current_pose_msg.pose.position.y])
 
             #toDo yaw
             current_yaw = get_yaw_from_msg(current_pose_msg)
             x = 0
             y = 0
 
-            if abs(current_yaw - self.last_yaw) < MAX_YAW_DIFF:
-                current_position = np.array([current_pose_msg.pose.position.x, current_pose_msg.pose.position.y])
+            #try to avoid gitter
+            diff_angle = self.limit_angle(current_yaw - self.last_yaw)
+            #if diff_angle > math.pi / 2:
+            #    diff_angle -= math.pi
+            #    rospy.logwarn("diff yaw properly flipped")
+            #elif diff_angle < math.pi / 2:
+            #    diff_angle += math.pi
+            #    rospy.logwarn("diff yaw properly flipped")
+
+            if abs(diff_angle) < MAX_YAW_DIFF:
                 target_vector = self.target_2d_pose - current_position
                 #target_vector_yaw = math.atan2(target_vector[1], target_vector[0])
-                diff_yaw = -current_yaw
-                rotated_target_x = target_vector[0] * math.cos(diff_yaw) - target_vector[1] * math.sin(diff_yaw)
-                rotated_target_y = target_vector[0] * math.sin(diff_yaw) + target_vector[1] * math.cos(diff_yaw)
-                x = self.update_xy(rotated_target_x, dt, self.pid_xy_pitch)
-                y = self.update_xy(rotated_target_y, dt, self.pid_xy_roll)
+                rotation_angle = -current_yaw
+                rotated_target_x, rotated_target_y = rotate_vector_by_angle(target_vector[0], target_vector[1], rotation_angle)
+                global_speed_x = (current_position[0] - self.last_pose_msg.pose.position.x) / dt
+                global_speed_y = (current_position[1] - self.last_pose_msg.pose.position.y) / dt
+                local_speed_x, local_speed_y = rotate_vector_by_angle(global_speed_x, global_speed_y, rotation_angle)
+                x = self.update_xy(rotated_target_x, local_speed_x, dt, self.pid_xy_pitch, self.pid_xy_x_speed)
+                y = self.update_xy(rotated_target_y, local_speed_y, dt, self.pid_xy_roll, self.pid_xy_y_speed)
 
-                rospy.loginfo("pitch %f, yaw %f, current yaw %f", x, y, current_yaw)
+                rospy.loginfo("pitch %f, roll %f, current yaw %f", x, y, current_yaw)
                 rospy.loginfo("target vector %s roated target= %f, %f", str(target_vector), rotated_target_x, rotated_target_y)
             else:
-                rospy.logwarn('yaw flipped %f', abs(current_yaw - self.last_yaw))
+                rospy.logwarn('yaw flipped %f', abs(diff_angle))
 
             cmd_twist = Twist()
             cmd_twist.linear.z = percent_to_thrust(current_thrust_cmd)
             #TODO: check if x and y are correct!!
             cmd_twist.linear.x = x
-            cmd_twist.linear.y = y
+            cmd_twist.linear.y = -y
             #sd_twist.angular.z = yaw
             #self.nominal_thrust = cmd_twist.linear.z
             self.last_yaw = current_yaw
 
             self.prev_altitude = current_altitude
+            self.prev_position = current_position
             # publish velocity
             self.pub_cmd_vel.publish(cmd_twist)
 
-    def update_xy(self, error, dt, pid):
+
+    def update_xy(self, error, current_speed, dt, pid_pitch_roll, pid_xy_speed):
         current_error = error
         if current_error > self.max_xy_error:
             current_error = self.max_xy_error
         elif current_error < - self.max_xy_error:
             current_error = -self.max_xy_error
 
-        roll_pitch_cmd = pid.update(current_error, dt)
+        target_speed = pid_xy_speed.update(current_error, dt)
+        speed_error = target_speed - current_speed
+
+        roll_pitch_cmd = pid_pitch_roll.update(speed_error, dt)
+        rospy.loginfo('current I %f ki %f speed error %f', pid_pitch_roll.i_term, pid_pitch_roll.ki, speed_error)
 
         if roll_pitch_cmd > self.pitch_roll_cap:
             roll_pitch_cmd = self.pitch_roll_cap
@@ -201,6 +240,7 @@ class HoverController(object):
         # self.paused = not self.paused
         self.last_update_time = rospy.get_time()
         self.prev_altitude = self.last_pose_msg.pose.position.z
+        self.prev_position = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
         self.target_altitude = self.prev_altitude
         self.target_2d_pose = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
         self.last_yaw = get_yaw_from_msg(self.last_pose_msg)
@@ -222,6 +262,9 @@ class HoverController(object):
         kp_xy = config['KP_xy']
         ki_xy = config['KI_xy']
         kd_xy = config['KD_xy']
+        kp_xy_speed = config['KP_xy_speed']
+        ki_xy_speed = config['KI_xy_speed']
+        kd_xy_speed = config['KD_xy_speed']
 
         self.max_altitude_error = config['max_altitude_error']
         self.nominal_thrust = config["Nom_thrust"]
@@ -231,6 +274,8 @@ class HoverController(object):
 
         self.pid_xy_pitch.set_pid_parameters(kp_xy, ki_xy, kd_xy)
         self.pid_xy_roll.set_pid_parameters(kp_xy, ki_xy, kd_xy)
+        self.pid_xy_x_speed.set_pid_parameters(kp_xy_speed, ki_xy_speed, kd_xy_speed)
+        self.pid_xy_y_speed.set_pid_parameters(kp_xy_speed, ki_xy_speed, kd_xy_speed)
 
         rospy.loginfo("kp %f ki %f kd %f", kp_xy, ki_xy, kd_xy)
         return config

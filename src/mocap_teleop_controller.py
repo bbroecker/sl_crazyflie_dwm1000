@@ -8,6 +8,7 @@ import math
 
 RATE = 50
 TIME_OUT = 0.5
+CONTROLLER_RP_THRESH = 0.2
 
 class MocapController:
     def __init__(self):
@@ -41,8 +42,10 @@ class MocapController:
                 if (cur_time - self.pid_last_time).to_sec() < TIME_OUT:
                     #pass
                     twist.linear.z = self.cmd_vel_pid.linear.z
-                    twist.linear.y = self.cmd_vel_pid.linear.y
-                    twist.linear.x = self.cmd_vel_pid.linear.x
+                    if abs(twist.linear.y) < CONTROLLER_RP_THRESH:
+                        twist.linear.y = self.cmd_vel_pid.linear.y
+                    if abs(twist.linear.x) < CONTROLLER_RP_THRESH:
+                        twist.linear.x = self.cmd_vel_pid.linear.x
                 else:
                     twist = Twist()
             else:

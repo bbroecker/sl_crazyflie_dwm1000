@@ -71,11 +71,11 @@ class PidController(object):
         self.current_output = 0.0
 
     def set_pid_parameters(self, kp=None, ki=None, kd=None):
-        if kp:
+        if kp is not None:
             self.kp = kp
-        if ki:
+        if ki is not None:
             self.ki = ki
-        if kd:
+        if kd is not None:
             self.kd = kd
         self.reset_pid()
         
