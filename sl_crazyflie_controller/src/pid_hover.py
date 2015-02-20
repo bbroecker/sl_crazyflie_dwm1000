@@ -7,16 +7,21 @@ from std_srvs.srv import Empty, EmptyResponse
 from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Float32
+from sl_crazyflie_srvs.srv import ChangeTargetPose, ChangeTargetPoseResponse, StartWanding, StartWandingResponse
 from dynamic_reconfigure.server import Server
 from sl_crazyflie.cfg import pid_cfgConfig
 import numpy as np
 import copy
+import tf
 
 # constants
 # update 30Hz
 RATE = 50
 MAX_THRUST = 65000.0
 MAX_YAW_DIFF = math.pi / 8
+TIME_THRESHOLD = 0.1
+WAND_DISTANCE = 1.0
+WAND_FRAME_ID = 'Robot_2/base_link'
 
 
 def thrust_to_percent(thrust):
@@ -43,6 +48,7 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
 class HoverController(object):
     def __init__(self):
         rospy.init_node('pid_hover')
+        self.tf_listen = tf.TransformListener()
 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
         self.pub_target_height = rospy.Publisher("hover/target_height", Float32, queue_size=10)
@@ -50,6 +56,7 @@ class HoverController(object):
         self.pub_current_climb_rate = rospy.Publisher("hover/current_climb_rate", Float32, queue_size=10)
         self.pub_thrust_percentage = rospy.Publisher("hover/thrust_percentage", Float32, queue_size=1)
 
+        self.pub_wand_target = rospy.Publisher("hover/wand_target", PoseStamped, queue_size=10)
         #std parameters
         self.paused = True
         self.last_update_time = rospy.get_time()
@@ -68,19 +75,22 @@ class HoverController(object):
         self.max_thrust = 0.9
         self.min_thrust = 0.25
         self.target_altitude = 0
-        self.max_altitude_error = 0.5
+        self.max_altitude_error = 0.75
         self.prev_altitude = None
         self.prev_position = None
+
+        self.take_off_height = 1
+        self.pos_3d_control_active = False
 
         self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust)
         self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate)
 
         #pid xy
-        kp_xy = 2.
-        ki_xy = 4.
-        kd_xy = 0
+        kp_xy = 15.
+        ki_xy = 15.
+        kd_xy = 0.
 
-        kp_xy_speed = 0.5
+        kp_xy_speed = 1.
         ki_xy_speed = 0.
         kd_xy_speed = 0.
 
@@ -95,28 +105,44 @@ class HoverController(object):
 
 
         self.last_yaw = None
-
+        self.last_wand_pose_msg = None
+        self.wanding = False
+        self.last_wand_time = None
         # self.pid_yaw = PidController(KP_yaw, KI_yaw, KD_yaw, Ilimit_yaw)
         #self.target_pose_yaw = 0
 
         self.dyn_server = Server(pid_cfgConfig, self.callback_dynreconf)
-
         rospy.Service('hover/stop', Empty, self.callback_stop)
         rospy.Service('hover/start_hold_position', Empty, self.callback_hold_position)
+        rospy.Service('hover/toggle_position_control', Empty, self.callback_toggle_pos_control)
+        #x, y or z are increase about the step size, the String has to contain x,y, or z
+        rospy.Service('hover/change_target_pose', ChangeTargetPose, self.callback_change_target_pose)
+
+        rospy.Service('hover/start_wanding', StartWanding, self.callback_start_wanding)
+        rospy.Service('hover/stop_wanding', Empty, self.callback_stop_wanding)
         # toDo make service call for target pose
 
         rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_optitrack_pose)
+        rospy.Subscriber('/Robot_2/pose', PoseStamped, self.callback_wand_pose)
 
         rospy.loginfo("Started hover pid controller")
 
     def callback_optitrack_pose(self, data):
         self.last_pose_msg = data
 
+    def callback_wand_pose(self, data):
+        self.last_wand_pose_msg = data
+        self.last_wand_time = rospy.Time.now()
+
+
     def spin(self):
         rospy.loginfo("Hover controller spinning")
         r = rospy.Rate(RATE)
         while not rospy.is_shutdown():
+            if self.wanding:
+                self.update_wand_target(copy.copy(self.last_wand_pose_msg))
             self.update(copy.copy(self.last_pose_msg))
+
             r.sleep()
 
     def limit_angle(self, angle):
@@ -125,6 +151,23 @@ class HoverController(object):
         elif angle < -math.pi:
             angle += 2 * math.pi
         return angle
+
+    def update_wand_target(self, pose_msg):
+        wand_target = PoseStamped()
+        wand_target.pose.position.z = WAND_DISTANCE
+        wand_target.pose.orientation.w = 1.
+        wand_target.header.stamp = pose_msg.header.stamp
+        wand_target.header.frame_id = WAND_FRAME_ID
+        target = None
+        try:
+            self.tf_listen.waitForTransform(WAND_FRAME_ID, pose_msg.header.frame_id, pose_msg.header.stamp, rospy.Duration(0.1))
+            target = self.tf_listen.transformPose(pose_msg.header.frame_id, wand_target)
+        except tf.Exception as e:
+            rospy.logwarn("Transform failed: %s", e)
+        if target is not None:
+            self.target_altitude = target.pose.position.z
+            self.target_2d_pose = np.array([target.pose.position.x, target.pose.position.y])
+            self.pub_wand_target.publish(target)
 
     def update(self, current_pose_msg):
         if not self.paused:
@@ -155,14 +198,15 @@ class HoverController(object):
                 #target_vector_yaw = math.atan2(target_vector[1], target_vector[0])
                 rotation_angle = -current_yaw
                 rotated_target_x, rotated_target_y = rotate_vector_by_angle(target_vector[0], target_vector[1], rotation_angle)
-                global_speed_x = (current_position[0] - self.last_pose_msg.pose.position.x) / dt
-                global_speed_y = (current_position[1] - self.last_pose_msg.pose.position.y) / dt
+                global_speed_x = (current_position[0] - self.prev_position[0]) / dt
+                global_speed_y = (current_position[1] - self.prev_position[1]) / dt
                 local_speed_x, local_speed_y = rotate_vector_by_angle(global_speed_x, global_speed_y, rotation_angle)
                 x = self.update_xy(rotated_target_x, local_speed_x, dt, self.pid_xy_pitch, self.pid_xy_x_speed)
                 y = self.update_xy(rotated_target_y, local_speed_y, dt, self.pid_xy_roll, self.pid_xy_y_speed)
 
-                rospy.loginfo("pitch %f, roll %f, current yaw %f", x, y, current_yaw)
-                rospy.loginfo("target vector %s roated target= %f, %f", str(target_vector), rotated_target_x, rotated_target_y)
+                rospy.loginfo("pitch %f, roll %f, current yaw %f", x, -y, current_yaw)
+                rospy.loginfo("local_speed_y %f", local_speed_y)
+                rospy.loginfo("target vector %s \n roated target= %f, %f", str(target_vector), rotated_target_x, rotated_target_y)
             else:
                 rospy.logwarn('yaw flipped %f', abs(diff_angle))
 
@@ -249,6 +293,55 @@ class HoverController(object):
 
         rospy.loginfo("Holding position")
 
+        return EmptyResponse()
+
+    def callback_toggle_pos_control(self, req):
+        # self.paused = not self.paused
+        if not self.pos_3d_control_active:
+            self.start_position_control(self.take_off_height)
+        else:
+            self.pos_3d_control_active = False
+            self.paused = True
+            rospy.loginfo("3D position mode off")
+
+        return EmptyResponse()
+
+    def start_position_control(self, extra_height=0):
+        self.last_update_time = rospy.get_time()
+        self.prev_altitude = self.last_pose_msg.pose.position.z
+        self.prev_position = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
+        self.target_altitude = self.prev_altitude + extra_height
+        self.target_2d_pose = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
+        self.last_yaw = get_yaw_from_msg(self.last_pose_msg)
+        self.pid_thrust.reset_pid()
+        self.paused = False
+        self.pos_3d_control_active = True
+        rospy.loginfo("Takeoff")
+        rospy.loginfo("3D position mode on")
+
+    def callback_change_target_pose(self, req):
+        if self.pos_3d_control_active:
+            self.last_update_time = rospy.get_time()
+            self.prev_altitude = self.last_pose_msg.pose.position.z
+            self.prev_position = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
+            self.target_2d_pose[0] += req.pose.position.x
+            self.target_2d_pose[1] += req.pose.position.y
+            self.target_altitude += req.pose.position.z
+            rospy.loginfo('%s', str(req.pose.position))
+        return ChangeTargetPoseResponse()
+
+    def callback_start_wanding(self, req):
+        res = StartWandingResponse()
+        res.success = False
+
+        if self.pos_3d_control_active and self.last_wand_pose_msg is not None and (rospy.Time.now() - self.last_wand_time).to_sec() < TIME_THRESHOLD:
+            res.success = True
+            self.wanding = True
+        return res
+
+    def callback_stop_wanding(self, req):
+        self.wanding = False
+        self.start_position_control()
         return EmptyResponse()
 
     def callback_dynreconf(self, config, level):

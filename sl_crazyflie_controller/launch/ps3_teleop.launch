@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="crazyflieSDK" default="~/crazyflie/crazyflie-clients-python/lib" />
-  <arg name="uri" default="radio://0/123/250K" />
+  <arg name="uri" default="radio://0/80/250K" />
   <arg name="joy_dev" default="/dev/input/js0" />
 
   <include file="$(find crazyflie)/launch/crazyflie_server.launch">
@@ -22,7 +22,7 @@
 
     <!-- Note that axis IDs are those from the joystick message plus one, to be able to invert axes by specifiying either positive or negative axis numbers.-->
     <!-- Axis 2 from joy message thus has to be set as '3' or '-3'(inverted mode) below-->
-    <node name="sl_crazyflie_teleop" pkg="sl_crazyflie" type="sl_crazyflie_teleop.py">
+    <node name="sl_crazyflie_teleop" pkg="sl_crazyflie_controller" type="sl_crazyflie_teleop.py">
        <param name="x_axis" value="4"/>
        <param name="y_axis" value="3"/>
        <param name="z_axis" value="2"/>
@@ -34,10 +34,10 @@
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
-    <node name="pid_hover" pkg="sl_crazyflie" type="pid_hover.py" output="screen">
+    <node name="pid_hover" pkg="sl_crazyflie_controller" type="pid_hover.py" output="screen">
     </node>
 
-    <node name="sl_crazyflie_controller" pkg="sl_crazyflie" type="mocap_teleop_controller.py"  output="screen">
+    <node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="mocap_teleop_controller.py"  output="screen">
     </node>
 
     <node name="crazyflie_demo_controller" pkg="crazyflie_demo" type="controller.py">
