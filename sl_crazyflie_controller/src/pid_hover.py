@@ -9,14 +9,14 @@ from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Float32
 from sl_crazyflie_srvs.srv import ChangeTargetPose, ChangeTargetPoseResponse, StartWanding, StartWandingResponse
 from dynamic_reconfigure.server import Server
-from sl_crazyflie.cfg import pid_cfgConfig
+from sl_crazyflie_controller.cfg import pid_cfgConfig
 import numpy as np
 import copy
 import tf
 
 # constants
 # update 30Hz
-RATE = 50
+RATE = 100
 MAX_THRUST = 65000.0
 MAX_YAW_DIFF = math.pi / 8
 TIME_THRESHOLD = 0.1
@@ -67,7 +67,7 @@ class HoverController(object):
         ki_thrust = 1.2
         kd_thrust = 0
 
-        kp_climb_rate = 0.5
+        kp_climb_rate = 1.0
         ki_climb_rate = 0
         kd_climb_rate = 0
 
@@ -75,7 +75,7 @@ class HoverController(object):
         self.max_thrust = 0.9
         self.min_thrust = 0.25
         self.target_altitude = 0
-        self.max_altitude_error = 0.75
+        self.max_altitude_error = 2.0
         self.prev_altitude = None
         self.prev_position = None
 
@@ -86,18 +86,18 @@ class HoverController(object):
         self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate)
 
         #pid xy
-        kp_xy = 15.
-        ki_xy = 15.
+        kp_xy = 22.5
+        ki_xy = 20.
         kd_xy = 0.
 
-        kp_xy_speed = 1.
+        kp_xy_speed = 1.2
         ki_xy_speed = 0.
         kd_xy_speed = 0.
 
         self.target_2d_pose = None
-        self.max_xy_error = 0.5
+        self.max_xy_error = 1.5
+        self.pitch_roll_cap = 45.0
 
-        self.pitch_roll_cap = 15.0
         self.pid_xy_pitch = PidController(kp_xy, ki_xy, kd_xy)
         self.pid_xy_roll = PidController(kp_xy, ki_xy, kd_xy)
         self.pid_xy_x_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed)
@@ -278,6 +278,7 @@ class HoverController(object):
 
     def callback_stop(self, req):
         self.paused = True
+        self.wanding = False
         return EmptyResponse()
 
     def callback_hold_position(self, req):
@@ -334,9 +335,10 @@ class HoverController(object):
         res = StartWandingResponse()
         res.success = False
 
-        if self.pos_3d_control_active and self.last_wand_pose_msg is not None and (rospy.Time.now() - self.last_wand_time).to_sec() < TIME_THRESHOLD:
+        if self.last_wand_pose_msg is not None and (rospy.Time.now() - self.last_wand_time).to_sec() < TIME_THRESHOLD:
             res.success = True
             self.wanding = True
+            self.paused = False
         return res
 
     def callback_stop_wanding(self, req):
@@ -362,6 +364,9 @@ class HoverController(object):
         self.max_altitude_error = config['max_altitude_error']
         self.nominal_thrust = config["Nom_thrust"]
 
+        self.max_xy_error = config['max_xy_error']
+        self.pitch_roll_cap = config['pitch_roll_cap']
+
         self.pid_thrust.set_pid_parameters(kp_thrust, ki_thrust, kd_thrust)
         self.pid_climb_rate.set_pid_parameters(kp_climb_rate, ki_climb_rate, kd_climb_rate)
 
@@ -370,7 +375,7 @@ class HoverController(object):
         self.pid_xy_x_speed.set_pid_parameters(kp_xy_speed, ki_xy_speed, kd_xy_speed)
         self.pid_xy_y_speed.set_pid_parameters(kp_xy_speed, ki_xy_speed, kd_xy_speed)
 
-        rospy.loginfo("kp %f ki %f kd %f", kp_xy, ki_xy, kd_xy)
+        rospy.loginfo("Dynreconf callback %s", str(config))
         return config
 
 

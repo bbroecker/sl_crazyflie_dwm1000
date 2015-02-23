@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="crazyflieSDK" default="~/crazyflie/crazyflie-clients-python/lib" />
-  <arg name="uri" default="radio://0/80/250K" />
+  <arg name="uri" default="radio://0/120/250K" />
   <arg name="joy_dev" default="/dev/input/js0" />
 
   <include file="$(find crazyflie)/launch/crazyflie_server.launch">
