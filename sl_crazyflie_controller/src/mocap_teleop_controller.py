@@ -17,7 +17,7 @@ BACKWARD = 6
 LEFT = 7
 RIGHT = 5
 TAKEOFF = 3
-STEP_SIZE = 0.1
+STEP_SIZE = 0.15
 WANDING = 0
 
 class MocapController:

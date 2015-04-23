@@ -22,6 +22,8 @@ MAX_YAW_DIFF = math.pi / 8
 TIME_THRESHOLD = 0.1
 WAND_DISTANCE = 1.0
 WAND_FRAME_ID = 'Robot_2/base_link'
+CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
+WORLD_FRAME_ID = '/world'
 
 
 def thrust_to_percent(thrust):
@@ -54,11 +56,17 @@ class HoverController(object):
         self.pub_target_height = rospy.Publisher("hover/target_height", Float32, queue_size=10)
         self.pub_target_climb_rate = rospy.Publisher("hover/target_climb_rate", Float32, queue_size=10)
         self.pub_current_climb_rate = rospy.Publisher("hover/current_climb_rate", Float32, queue_size=10)
+        self.pub_current_x_speed = rospy.Publisher("hover/current_x_speed", Float32, queue_size=10)
+        self.pub_target_x_speed = rospy.Publisher("hover/target_x_speed", Float32, queue_size=10)
+        self.pub_current_y_speed = rospy.Publisher("hover/current_y_speed", Float32, queue_size=10)
+        self.pub_target_y_speed = rospy.Publisher("hover/target_y_speed", Float32, queue_size=10)
         self.pub_thrust_percentage = rospy.Publisher("hover/thrust_percentage", Float32, queue_size=1)
 
         self.pub_wand_target = rospy.Publisher("hover/wand_target", PoseStamped, queue_size=10)
+        self.pub_target_pose = rospy.Publisher("hover/target_pose", PoseStamped, queue_size=10)
+        self.pub_current_pose = rospy.Publisher("hover/current_pose", PoseStamped, queue_size=10)
         #std parameters
-        self.paused = True
+        self.running = False
         self.last_update_time = rospy.get_time()
         self.last_pose_msg = None
 
@@ -82,12 +90,12 @@ class HoverController(object):
         self.take_off_height = 1
         self.pos_3d_control_active = False
 
-        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust)
-        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate)
+        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust, 0, 0.75)
+        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate, -0.25, 0.25)
 
         #pid xy
         kp_xy = 22.5
-        ki_xy = 20.
+        ki_xy = 20.0
         kd_xy = 0.
 
         kp_xy_speed = 1.2
@@ -96,12 +104,12 @@ class HoverController(object):
 
         self.target_2d_pose = None
         self.max_xy_error = 1.5
-        self.pitch_roll_cap = 45.0
+        self.pitch_roll_cap = 20.0
 
-        self.pid_xy_pitch = PidController(kp_xy, ki_xy, kd_xy)
-        self.pid_xy_roll = PidController(kp_xy, ki_xy, kd_xy)
-        self.pid_xy_x_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed)
-        self.pid_xy_y_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed)
+        self.pid_xy_pitch = PidController(kp_xy, ki_xy, kd_xy, -1, 1)
+        self.pid_xy_roll = PidController(kp_xy, ki_xy, kd_xy, -1, 1)
+        self.pid_xy_x_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed, -1, 1)
+        self.pid_xy_y_speed = PidController(kp_xy_speed, ki_xy_speed, kd_xy_speed, -1, 1)
 
 
         self.last_yaw = None
@@ -167,10 +175,11 @@ class HoverController(object):
         if target is not None:
             self.target_altitude = target.pose.position.z
             self.target_2d_pose = np.array([target.pose.position.x, target.pose.position.y])
+            #self.target_2d_pose = np.array([target.pose.position.x, self.target_2d_pose[1]])
             self.pub_wand_target.publish(target)
 
     def update(self, current_pose_msg):
-        if not self.paused:
+        if self.running:
             current_time = rospy.get_time()
             dt = float(current_time - self.last_update_time)
             self.last_update_time = current_time
@@ -201,11 +210,11 @@ class HoverController(object):
                 global_speed_x = (current_position[0] - self.prev_position[0]) / dt
                 global_speed_y = (current_position[1] - self.prev_position[1]) / dt
                 local_speed_x, local_speed_y = rotate_vector_by_angle(global_speed_x, global_speed_y, rotation_angle)
-                x = self.update_xy(rotated_target_x, local_speed_x, dt, self.pid_xy_pitch, self.pid_xy_x_speed)
-                y = self.update_xy(rotated_target_y, local_speed_y, dt, self.pid_xy_roll, self.pid_xy_y_speed)
+                x = self.update_xy(rotated_target_x, local_speed_x, dt, self.pid_xy_pitch, self.pid_xy_x_speed, [self.pub_target_x_speed, self.pub_current_x_speed])
+                y = self.update_xy(rotated_target_y, local_speed_y, dt, self.pid_xy_roll, self.pid_xy_y_speed, [self.pub_target_y_speed, self.pub_current_y_speed])
 
-                rospy.loginfo("pitch %f, roll %f, current yaw %f", x, -y, current_yaw)
-                rospy.loginfo("local_speed_y %f", local_speed_y)
+                rospy.logdebug("pitch %f, roll %f, current yaw %f", x, -y, current_yaw)
+                rospy.logdebug("local_speed_y %f", local_speed_y)
                 rospy.loginfo("target vector %s \n roated target= %f, %f", str(target_vector), rotated_target_x, rotated_target_y)
             else:
                 rospy.logwarn('yaw flipped %f', abs(diff_angle))
@@ -224,8 +233,25 @@ class HoverController(object):
             # publish velocity
             self.pub_cmd_vel.publish(cmd_twist)
 
+            if self.target_2d_pose is not None:
+                target_pose = PoseStamped()
+                target_pose.pose.position.x = self.target_2d_pose[0]
+                target_pose.pose.position.y = self.target_2d_pose[1]
+                target_pose.pose.position.z = self.target_altitude
+                target_pose.header.stamp = rospy.Time.now()
 
-    def update_xy(self, error, current_speed, dt, pid_pitch_roll, pid_xy_speed):
+                current_pose = PoseStamped()
+                current_pose.pose = current_pose_msg.pose
+                current_pose.header.stamp = rospy.Time.now()
+
+                self.pub_current_pose.publish(current_pose)
+                self.pub_target_pose.publish(target_pose)
+
+
+
+
+
+    def update_xy(self, error, current_speed, dt, pid_pitch_roll, pid_xy_speed, publisher=None):
         current_error = error
         if current_error > self.max_xy_error:
             current_error = self.max_xy_error
@@ -235,8 +261,14 @@ class HoverController(object):
         target_speed = pid_xy_speed.update(current_error, dt)
         speed_error = target_speed - current_speed
 
+        if (publisher is not None):
+            #targetspeed
+            publisher[0].publish(target_speed)
+            #current speed
+            publisher[1].publish(current_speed)
+
         roll_pitch_cmd = pid_pitch_roll.update(speed_error, dt)
-        rospy.loginfo('current I %f ki %f speed error %f', pid_pitch_roll.i_term, pid_pitch_roll.ki, speed_error)
+        rospy.logdebug('current I %f ki %f speed error %f', pid_pitch_roll.i_term, pid_pitch_roll.ki, speed_error)
 
         if roll_pitch_cmd > self.pitch_roll_cap:
             roll_pitch_cmd = self.pitch_roll_cap
@@ -249,6 +281,8 @@ class HoverController(object):
         #ALTITUDE TO CLIMB_RATE PID
         current_target_altitude_error = self.target_altitude - current_altitude
 
+        rospy.loginfo("target altitude error: %s", str(current_target_altitude_error))
+
         if current_target_altitude_error > self.max_altitude_error:
             current_target_altitude_error = self.max_altitude_error
 
@@ -256,11 +290,15 @@ class HoverController(object):
             current_target_altitude_error = -self.max_altitude_error
 
         target_climb_rate = self.pid_climb_rate.update(current_target_altitude_error, dt)
+
         current_climb_rate = (current_altitude - self.prev_altitude) / dt
         climb_rate_error = target_climb_rate - current_climb_rate
 
         #climb_rate to thrust pid
         thrust = self.pid_thrust.update(climb_rate_error, dt)
+
+        rospy.loginfo("target climb rate : %s thrust %s", str(target_climb_rate), str(thrust))
+
         current_thrust_cmd = self.nominal_thrust + thrust
 
         if current_thrust_cmd < self.min_thrust:
@@ -277,7 +315,7 @@ class HoverController(object):
         return current_thrust_cmd
 
     def callback_stop(self, req):
-        self.paused = True
+        self.running = False
         self.wanding = False
         return EmptyResponse()
 
@@ -290,7 +328,7 @@ class HoverController(object):
         self.target_2d_pose = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
         self.last_yaw = get_yaw_from_msg(self.last_pose_msg)
         self.pid_thrust.reset_pid()
-        self.paused = False
+        self.running = True
 
         rospy.loginfo("Holding position")
 
@@ -302,7 +340,7 @@ class HoverController(object):
             self.start_position_control(self.take_off_height)
         else:
             self.pos_3d_control_active = False
-            self.paused = True
+            self.running = False
             rospy.loginfo("3D position mode off")
 
         return EmptyResponse()
@@ -315,20 +353,38 @@ class HoverController(object):
         self.target_2d_pose = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
         self.last_yaw = get_yaw_from_msg(self.last_pose_msg)
         self.pid_thrust.reset_pid()
-        self.paused = False
+        self.running = True
         self.pos_3d_control_active = True
         rospy.loginfo("Takeoff")
         rospy.loginfo("3D position mode on")
 
     def callback_change_target_pose(self, req):
         if self.pos_3d_control_active:
+            local_target = PoseStamped()
+            local_target.pose.position.x = req.pose.position.x
+            local_target.pose.position.y = req.pose.position.y
+            local_target.pose.position.z = req.pose.position.z
+            local_target.pose.orientation.w = 1.
+            local_target.header.stamp = rospy.Time.now()
+            local_target.header.frame_id = CRAZY_FLIE_FRAME_ID
+            global_target = None
+            try:
+                self.tf_listen.waitForTransform(CRAZY_FLIE_FRAME_ID, WORLD_FRAME_ID, local_target.header.stamp, rospy.Duration(0.1))
+                global_target = self.tf_listen.transformPose(WORLD_FRAME_ID, local_target)
+            except tf.Exception as e:
+                rospy.logwarn("Transform failed: %s", e)
+            if global_target is not None:
+                self.target_altitude = global_target.pose.position.z
+                self.target_2d_pose = np.array([global_target.pose.position.x, global_target.pose.position.y])
+                rospy.loginfo('%s', str(global_target))
+
             self.last_update_time = rospy.get_time()
-            self.prev_altitude = self.last_pose_msg.pose.position.z
-            self.prev_position = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
-            self.target_2d_pose[0] += req.pose.position.x
-            self.target_2d_pose[1] += req.pose.position.y
-            self.target_altitude += req.pose.position.z
-            rospy.loginfo('%s', str(req.pose.position))
+            #self.prev_altitude = self.last_pose_msg.pose.position.z
+            #self.prev_position = np.array([self.last_pose_msg.pose.position.x, self.last_pose_msg.pose.position.y])
+            #self.target_2d_pose[0] += req.pose.position.x
+            #self.target_2d_pose[1] += req.pose.position.y
+            # self.target_altitude += req.pose.position.z
+
         return ChangeTargetPoseResponse()
 
     def callback_start_wanding(self, req):
@@ -338,7 +394,7 @@ class HoverController(object):
         if self.last_wand_pose_msg is not None and (rospy.Time.now() - self.last_wand_time).to_sec() < TIME_THRESHOLD:
             res.success = True
             self.wanding = True
-            self.paused = False
+            self.running = True
         return res
 
     def callback_stop_wanding(self, req):
