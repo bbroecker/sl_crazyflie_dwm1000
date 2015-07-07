@@ -105,15 +105,16 @@ class PidController(object):
 
         #i-term calc
         self.i_error += self.p_error * dt
+
+        if self.i_max and self.i_error > self.i_max:
+            self.i_error = self.i_max
+            rospy.logwarn('I value is max %f', self.i_error)
+
+        elif self.i_min and self.i_error < self.i_min:
+            rospy.logwarn('I value is min %f', self.i_error)
+            self.i_error = self.i_min
+
         i_term = self.ki * self.i_error
-
-        if self.i_max and i_term > self.i_max:
-            i_term = self.i_max
-            rospy.logwarn('I value is max %f', i_term)
-
-        elif self.i_min and i_term < self.i_min:
-            rospy.logwarn('I value is min %f', i_term)
-            i_term = self.i_min
 
         self.p_error_last = self.p_error
 
