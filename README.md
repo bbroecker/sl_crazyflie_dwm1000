@@ -1,5 +1,21 @@
 # sl_crazyflie
 
+## Installation
+Change to your catkin workspace src directory, e.g:
+```
+cd ~/catkin_ws/src
+```
+Checkout this repository:
+```
+git clone https://github.com/smARTLab-liv/sl_crazyflie
+```
+Checkout dependencies:
+```
+git clone https://github.com/whoenig/crazyflie_ros
+git clone https://github.com/ros-drivers/mocap_optitrack (optional, depending on mocap system)
+```
+
+## License
 The MIT License (MIT)
 Copyright (c) 2016 smARTLab, University of Liverpool
 
