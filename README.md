@@ -42,7 +42,6 @@ Arrow-Buttons = change target pose in x and y (+/- 10cm)
 
 Triangle-button = increase target pose z value (+ 10cm)
 
-	ros_lib_jade/
 Triangle-button = decrease target pose z value (- 10cm)
 
 
