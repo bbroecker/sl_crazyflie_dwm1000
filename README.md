@@ -14,6 +14,33 @@ Checkout dependencies:
 git clone https://github.com/whoenig/crazyflie_ros
 git clone https://github.com/ros-drivers/mocap_optitrack (optional, depending on mocap system)
 ```
+catkin_make your workspace:
+```
+cd ~/catkin_ws/src
+catkin_make
+```
+## Preparation
+If you are not using mocap_optitrack, go to the sl_crazyflie_demo/launch folder.
+Change the value of the "cf_pose_topic" parameter, the subscriber to this topic 
+expects a PoseStamped which represents the crazyflie pose in the World-frame. 
+
+## Run
+Pair the ps3-controller.
+Start the mocap-node, in our case:
+```
+roslaunch mocap_optitrack mocap.launch
+```
+Start our controller:
+```
+roslaunch sl_crazyflie_demo ps3_teleop.launch
+```
+
+## PS3 Controls
+Start-Button = take-off
+Arrow-Buttons = change target pose in x and y (+/- 10cm)
+Triangle-button = increase target pose z value (+ 10cm)
+Triangle-button = decrease target pose z value (- 10cm)
+
 
 ## License
 The MIT License (MIT)

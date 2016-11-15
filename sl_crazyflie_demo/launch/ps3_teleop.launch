@@ -34,6 +34,8 @@
     </node>
 
     <node name="pid_hover" pkg="sl_crazyflie_controller" type="pid_hover.py" output="screen">
+	    <param name="cf_pose_topic" value="/Robot1/pose"/>
+	    <param name="wand_pose_topic" value="/Robot2/pose"/>
     </node>
 
     <node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="mocap_teleop_controller.py"  output="screen">
