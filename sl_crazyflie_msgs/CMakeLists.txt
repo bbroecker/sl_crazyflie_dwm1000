@@ -48,6 +48,9 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   FlightMode.msg
+  TargetMsg.msg
+  Velocity.msg
+  ControlMode.msg
 )
 
 ## Generate services in the 'srv' folder
