@@ -6,7 +6,7 @@ uint16 POS_HOLD = 4
 uint16 POS_FOLLOW = 5
 uint16 VELOCITY_CRTL = 6
 uint16 WANDING = 7
-uint16 Z_VEL_JOY = 8
+uint16 TEST_VEL_JOY = 8
 
 
 uint16 id

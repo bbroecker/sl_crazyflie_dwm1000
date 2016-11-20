@@ -69,8 +69,8 @@ class MocapController:
                 self.change_flight_mode(ch_flm)
                 self.wanding = False
             else:
-                #ch_flm.mode.id = FlightMode.WANDING
-                ch_flm.mode.id = FlightMode.TEST_VEL_JOY
+                ch_flm.mode.id = FlightMode.WANDING
+                #ch_flm.mode.id = FlightMode.TEST_VEL_JOY
                 res = self.change_flight_mode(ch_flm)
                 self.wanding = res.success
 

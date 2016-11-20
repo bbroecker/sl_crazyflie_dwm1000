@@ -53,12 +53,15 @@ class PidController(object):
     d_error = 0.0
     current_output = 0.0
 
-    def __init__(self, kp, ki, kd, i_min=None, i_max=None):
+    def __init__(self, kp, ki, kd, i_min=None, i_max=None, debug=False):
         self.set_pid_parameters(kp, ki, kd)
         self.i_max = i_max
         self.i_min = i_min
-
+        self.debug = debug
+        print "PidController"
         print kp, ki, kd
+        if self.kd > 0.0 or self.kd < 0.0:
+            print self.kd
         
     def reset_pid(self):
         self.i_term = 0.0
@@ -97,6 +100,8 @@ class PidController(object):
         else:
             self.d_error = error_dot
         d_term = self.kd * self.d_error
+        if self.debug and self.kd != 0.0:
+            print "d_term:   {0}".format(d_term)
 
         #PID CHANGE CRAZYFLIE fishy
         #if self.d_error < 0:

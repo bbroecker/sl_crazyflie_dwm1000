@@ -55,6 +55,7 @@ class Teleop:
                               self.y_max_vel)
         vel.z = convert_value(twist.linear.z, -self.axes["z"]["max"], self.axes["z"]["max"], -self.z_max_vel,
                               self.z_max_vel)
+        # print "x: {0} y:{1}".format(vel.z, vel.y)
         vel.yaw = convert_value(twist.angular.z, -self.axes["yaw"]["max"], self.axes["yaw"]["max"], -self.yaw_max_vel,
                               self.yaw_max_vel)
         return vel
