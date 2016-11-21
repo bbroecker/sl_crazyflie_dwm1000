@@ -15,6 +15,8 @@ TAKEOFF_HEIGHT = 0.6
 WAND_DISTANCE = 0.5
 POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.10
+LAND_VEL = -0.25
+TAKEOFF_VEL = 0.25
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
@@ -98,7 +100,7 @@ class FlightModeManager:
             else:
                 change_mode = False
         elif self.current_flightmode.id is FlightMode.TAKEOFF:
-            if euler_distance_pose(self.last_pose_msg, self.target_pose) <= POS_THRESHOLD:
+            if self.last_pose_msg.pose.position.z >= self.target_pose.pose.position.z:
                 new_mode.mode.id = FlightMode.POS_HOLD
             else:
                 change_mode = False
@@ -189,10 +191,21 @@ class FlightModeManager:
         if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
             vel.x = self.velocity_teleop.x
             vel.y = self.velocity_teleop.y
+            vel.z = self.velocity_teleop.z
+            vel.yaw = self.velocity_teleop.yaw
+
+        #controller active
         if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
             vel.x = self.velocity_teleop.x
         if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
             vel.y = self.velocity_teleop.y
+        if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
+            vel.yaw = self.velocity_teleop.yaw
+
+        if self.current_flightmode.id is FlightMode.LAND:
+            vel.z = LAND_VEL
+        if self.current_flightmode.id is FlightMode.TAKEOFF:
+            vel.z = TAKEOFF_VEL
 
         if self.last_geo_fencing_update is not None and (rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
             vel.x = self.last_geo_fencing_vel.x
@@ -205,19 +218,23 @@ class FlightModeManager:
         return self.target_pose
 
     def joy_active(self):
-        return abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH
+        return abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH
 
     def gen_control_mode(self):
         mode = ControlMode()
-        mode.x_mode = mode.y_mode = mode.z_mode = ControlMode.POSITION
+        mode.x_mode = mode.y_mode = mode.z_mode = mode.yaw_mode = ControlMode.POSITION
         if self.current_flightmode.id in VEL_CTRL_MODES or (self.joy_active() and self.current_flightmode.id in POS_CTRL_MODES):
             if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
-                mode.x_mode = ControlMode.VELOCITY
-                mode.y_mode = ControlMode.VELOCITY
+                mode.x_mode = mode.y_mode = mode.z_mode = mode.yaw_mode = ControlMode.VELOCITY
             if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
                 mode.x_mode = ControlMode.VELOCITY
             if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
                 mode.y_mode = ControlMode.VELOCITY
+            if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
+                mode.yaw_mode = ControlMode.VELOCITY
+        elif self.current_flightmode.id in [FlightMode.TAKEOFF, FlightMode.LAND]:
+            mode.z_mode = ControlMode.VELOCITY
+
 
         if self.last_geo_fencing_update is not None and (rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
             mode.x_mode = mode.y_mode = ControlMode.VELOCITY
@@ -239,13 +256,9 @@ class FlightModeManager:
                 twist.linear.z = self.cmd_vel_pid.linear.z
                 if self.current_flightmode.id in POS_CTRL_MODES:
                     twist.linear.y = self.cmd_vel_pid.linear.y
-                # elif abs(twist.linear.y) < CONTROLLER_RP_THRESH and self.target_msg.control_mode.y_mode == ControlMode.POSITION:
-                #     twist.linear.y = self.cmd_vel_pid.linear.y
-
-                if self.current_flightmode.id in POS_CTRL_MODES:
                     twist.linear.x = self.cmd_vel_pid.linear.x
-                # elif abs(twist.linear.x) < CONTROLLER_RP_THRESH and self.target_msg.control_mode.x_mode == ControlMode.POSITION:
-                #     twist.linear.x = self.cmd_vel_pid.linear.x
+                    twist.angular.z = self.cmd_vel_pid.angular.z
+
             else:
                 if (cur_time - self.teleop_last_time).to_sec() > POSE_TIME_OUT:
                     twist = Twist()

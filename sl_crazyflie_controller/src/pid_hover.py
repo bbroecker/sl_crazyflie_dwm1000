@@ -126,14 +126,28 @@ class HoverController(object):
         ki_y_speed = 0.4
         kd_y_speed = 0.2
 
+        #pid yaw
+        p_yaw_pos = 0.5
+        i_yaw_pos = 0.0
+        d_yaw_pos = 0.0
+
+        p_yaw_angle_speed = 50.0
+        i_yaw_angle_speed = 0.0
+        d_yaw_angle_speed = 0.0
+
         self.target_2d_pose = None
         self.max_xy_error = 1.5
         self.pitch_roll_cap = 20.0
 
-        self.pid_xy_pitch = PidController(kp_x, ki_x, kd_x, -10, 10)
+        self.pid_xy_pitch = PidController(kp_x, ki_x, kd_x, -10,10)
         self.pid_xy_roll = PidController(kp_y, ki_y, kd_y, -10, 10)
         self.pid_xy_x_speed = PidController(kp_x_speed, ki_x_speed, kd_x_speed, -0.5, 0.5)
         self.pid_xy_y_speed = PidController(kp_y_speed, ki_y_speed, kd_y_speed, -0.5, 0.5)
+
+        self.max_yaw_angle_error = 1.7
+        self.max_yaw_cmd = 200
+        self.pid_yaw_angle = PidController(p_yaw_pos, i_yaw_pos, d_yaw_pos, -1, 1)
+        self.pid_yaw_angle_speed = PidController(p_yaw_angle_speed, i_yaw_angle_speed, d_yaw_angle_speed, -1, 1)
 
         self.last_yaw = None
         self.last_target_pose_msg = None
@@ -204,6 +218,8 @@ class HoverController(object):
 
             # toDo yaw
             current_yaw = get_yaw_from_msg(current_pose_msg)
+            current_target_yaw = get_yaw_from_msg(self.last_target_pose_msg)
+            yaw_cmd = self.update_yaw(current_yaw, current_target_yaw, dt)
             x = 0
             y = 0
 
@@ -260,6 +276,7 @@ class HoverController(object):
             # TODO: check if x and y are correct!!
             cmd_twist.linear.x = x
             cmd_twist.linear.y = -y
+            cmd_twist.angular.z = -yaw_cmd
             # sd_twist.angular.z = yaw
             # self.nominal_thrust = cmd_twist.linear.z
             self.last_yaw = current_yaw
@@ -312,6 +329,44 @@ class HoverController(object):
         rospy.logdebug('current I %f ki %f speed error %f', pid_pitch_roll.i_term, pid_pitch_roll.ki, speed_error)
 
         return roll_pitch_cmd
+
+    def update_yaw(self, current_yaw, target_yaw, dt):
+        assert isinstance(self.last_target_msg, TargetMsg)
+        if self.last_target_msg.control_mode.yaw_mode is ControlMode.POSITION:
+            # ALTITUDE TO CLIMB_RATE PID
+            yaw_angle_error = self.limit_angle(target_yaw - current_yaw)
+
+            # rospy.loginfo("target altitude error: %s", str(current_target_altitude_error))
+
+            if yaw_angle_error > self.max_yaw_angle_error:
+                yaw_angle_error = self.max_yaw_angle_error
+
+            if yaw_angle_error < -self.max_yaw_angle_error:
+                yaw_angle_error = -self.max_yaw_angle_error
+            target_angle_speed = self.pid_yaw_angle.update(yaw_angle_error, dt)
+        else:
+            target_angle_speed = self.last_target_msg.target_velocity.yaw
+
+        current_angle_speed = self.limit_angle(current_yaw - self.last_yaw) / dt
+
+        angle_speed_error = target_angle_speed - current_angle_speed
+
+        # climb_rate to thrust pid
+
+        yaw_cmd = self.pid_yaw_angle_speed.update(angle_speed_error, dt)
+
+        # rospy.loginfo("target climb rate : %s thrust %s", str(target_climb_rate), str(thrust))
+
+        if yaw_cmd < -self.max_yaw_cmd:
+            yaw_cmd = -self.max_yaw_cmd
+        elif yaw_cmd > self.max_yaw_cmd:
+            yaw_cmd = self.max_yaw_cmd
+
+        # publish debug msgs
+
+        return yaw_cmd
+
+
 
     def update_thrust(self, current_altitude, dt):
         assert isinstance(self.last_target_msg, TargetMsg)
@@ -372,6 +427,15 @@ class HoverController(object):
         self.pos_3d_control_active = False
         return EmptyResponse()
 
+    def reset_averager(self):
+        self.avg_global_x_speed = []
+        self.avg_local_x_speed = []
+        self.avg_global_x_speed = []
+        self.avg_local_y_speed = []
+        self.target_speed_x_avg_list = []
+        self.target_speed_y_avg_list = []
+        self.target_climb_rate_list = []
+
     def callback_start_pos_control(self, req):
         # self.paused = not self.paused
         self.last_update_time = rospy.get_time()
@@ -386,15 +450,9 @@ class HoverController(object):
         self.pid_xy_x_speed.reset_pid()
         self.pid_xy_y_speed.reset_pid()
         self.pid_thrust.reset_pid()
+        self.reset_averager()
         self.running = True
         self.pos_3d_control_active = True
-        self.avg_global_x_speed = []
-        self.avg_local_x_speed = []
-        self.avg_global_x_speed = []
-        self.avg_local_y_speed = []
-        self.target_speed_x_avg_list = []
-        self.target_speed_y_avg_list = []
-        self.target_climb_rate_list = []
         rospy.loginfo("Takeoff")
         rospy.loginfo("3D position mode on")
         return EmptyResponse()
@@ -423,6 +481,15 @@ class HoverController(object):
         ki_y_speed = config['KI_y_speed']
         kd_y_speed = config['KD_y_speed']
 
+        #pid yaw
+        p_yaw_pos = config['P_yaw_pos']
+        i_yaw_pos = config['I_yaw_pos']
+        d_yaw_pos = config['D_yaw_pos']
+
+        p_yaw_angle_speed = config['P_yaw_speed']
+        i_yaw_angle_speed = config['I_yaw_speed']
+        d_yaw_angle_speed = config['D_yaw_speed']
+
         self.max_altitude_error = config['max_altitude_error']
         self.nominal_thrust = config["Nom_thrust"]
 
@@ -436,6 +503,9 @@ class HoverController(object):
         self.pid_xy_roll.set_pid_parameters(kp_y, ki_y, kd_y)
         self.pid_xy_x_speed.set_pid_parameters(kp_x_speed, ki_x_speed, kd_x_speed)
         self.pid_xy_y_speed.set_pid_parameters(kp_y_speed, ki_y_speed, kd_y_speed)
+
+        self.pid_yaw_angle.set_pid_parameters(p_yaw_pos, i_yaw_pos, d_yaw_pos)
+        self.pid_yaw_angle_speed.set_pid_parameters(p_yaw_angle_speed, i_yaw_angle_speed, d_yaw_angle_speed)
 
         rospy.loginfo("Dynreconf callback %s", str(config))
         return config

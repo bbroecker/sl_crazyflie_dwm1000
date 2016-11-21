@@ -33,7 +33,7 @@
        <param name="x_vel_max" value="1.2"/>
        <param name="y_vel_max" value="1.2"/>
        <param name="z_vel_max" value="1.2"/>
-       <param name="yaw_vel_max" value="0.5"/>
+       <param name="yaw_vel_max" value="5.0"/>
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
