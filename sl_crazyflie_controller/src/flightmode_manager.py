@@ -17,10 +17,12 @@ POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.10
 LAND_VEL = -0.25
 TAKEOFF_VEL = 0.25
+FLIGHT_MODE_UPDATERATE = 2 #Hz
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
-POS_CTRL_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.WANDING, FlightMode.POS_FOLLOW, FlightMode.TEST_VEL_JOY]
+POS_CTRL_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.WANDING, FlightMode.POS_FOLLOW, FlightMode.TEST_VEL_JOY,
+                  FlightMode.EXTERNAL_CONTROL]
 VEL_CTRL_MODES = [FlightMode.TEST_VEL_JOY]
 
 def euler_distance_pose(pose1, pose2):
@@ -57,6 +59,7 @@ class FlightModeManager:
 
         self.pub_target_msg = rospy.Publisher("/main_crtl/target_msg", TargetMsg, queue_size=1)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+        self.pub_flight_mode = rospy.Publisher("/flight_mode", FlightMode, queue_size=1)
 
         self.wand_pose_sub = rospy.Subscriber('/Robot_2/pose', PoseStamped, self.callback_wand_pose)
         self.cf_pose_sub = rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_cf_pose)
@@ -69,6 +72,7 @@ class FlightModeManager:
         self.stop_mocap_ctrl = rospy.ServiceProxy('hover/stop_pid', Empty)
         self.start_mocap_ctrl = rospy.ServiceProxy('hover/start_pid', Empty)
         rospy.Service('change_flightmode', ChangeFlightMode, self.callback_change_flightmode)
+        self.last_fightmode_update = rospy.Time.now()
 
 
 
@@ -83,6 +87,9 @@ class FlightModeManager:
             self.check_for_fallback_mode()
             self.update_target_msg()
             self.publish_target_msg()
+            if (rospy.Time.now() - self.last_fightmode_update).to_sec() > 1.0 / FLIGHT_MODE_UPDATERATE:
+                self.pub_flight_mode.publish(self.current_flightmode)
+                self.last_fightmode_update = rospy.Time.now()
             r.sleep()
 
     def check_for_fallback_mode(self):
