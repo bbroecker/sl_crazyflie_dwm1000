@@ -34,6 +34,7 @@
        <param name="y_vel_max" value="1.2"/>
        <param name="z_vel_max" value="1.2"/>
        <param name="yaw_vel_max" value="5.0"/>
+       <param name="pid_tuning_active" value="False"/>
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
@@ -44,14 +45,21 @@
     </node>
 
     <node name="geo_fencing" pkg="sl_crazyflie_controller" type="geofencing_node.py" output="screen">
+       <param name="min_x" value="-1.65"/>
+       <param name="min_y" value="-2.2"/>
+       <param name="max_x" value="1.5"/>
+       <param name="max_y" value="1.5"/>
     </node>
 
     <node name="flightmode_manager" pkg="sl_crazyflie_controller" type="flightmode_manager.py" output="screen">
 	    <param name="cf_pose_topic" value="/Robot1/pose"/>
 	    <param name="wand_pose_topic" value="/Robot2/pose"/>
+	    <param name="pid_tuning_active" value="False"/>
     </node>
 
-    <node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="mocap_teleop_controller.py"  output="screen">
+
+
+    <node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="target_msg_mux.py"  output="screen">
     </node>
 
     <node name="crazyflie_demo_controller" pkg="crazyflie_demo" type="controller.py">

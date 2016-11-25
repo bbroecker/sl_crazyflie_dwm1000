@@ -17,19 +17,23 @@ POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.10
 LAND_VEL = -0.25
 TAKEOFF_VEL = 0.25
-FLIGHT_MODE_UPDATERATE = 2 #Hz
+FLIGHT_MODE_UPDATERATE = 2  # Hz
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
-POS_CTRL_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.WANDING, FlightMode.POS_FOLLOW, FlightMode.TEST_VEL_JOY,
+POS_CTRL_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.WANDING, FlightMode.POS_FOLLOW,
+                  FlightMode.TEST_VEL_JOY,
                   FlightMode.EXTERNAL_CONTROL]
 VEL_CTRL_MODES = [FlightMode.TEST_VEL_JOY]
+
 
 def euler_distance_pose(pose1, pose2):
     assert isinstance(pose1, PoseStamped)
     assert isinstance(pose2, PoseStamped)
-    return math.sqrt(math.pow(pose1.pose.position.x - pose2.pose.position.x, 2) + math.pow(pose1.pose.position.y - pose2.pose.position.y, 2) +
+    return math.sqrt(math.pow(pose1.pose.position.x - pose2.pose.position.x, 2) + math.pow(
+        pose1.pose.position.y - pose2.pose.position.y, 2) +
                      math.pow(pose1.pose.position.z - pose2.pose.position.z, 2))
+
 
 class FlightModeManager:
     def __init__(self):
@@ -51,30 +55,33 @@ class FlightModeManager:
         self.last_geo_fencing_vel = None
 
         self.tf_listen = tf.TransformListener()
-
+        self.tune_pid = rospy.get_param("~pid_tuning_active", False)
         self.target_pose = None
         self.target_velocity = None
         self.target_msg = TargetMsg()
         self.wand_frame_id = rospy.get_param("wand_frame_id", "/Robot_2/base_link")
 
-        self.pub_target_msg = rospy.Publisher("/main_crtl/target_msg", TargetMsg, queue_size=1)
+        self.pub_target_msg = rospy.Publisher("main_crtl/target_msg", TargetMsg, queue_size=1)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
-        self.pub_flight_mode = rospy.Publisher("/flight_mode", FlightMode, queue_size=1)
+        self.pub_flight_mode = rospy.Publisher("flight_mode", FlightMode, queue_size=1)
 
         self.wand_pose_sub = rospy.Subscriber('/Robot_2/pose', PoseStamped, self.callback_wand_pose)
         self.cf_pose_sub = rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_cf_pose)
         self.manual_mode_subscriber_teleop = rospy.Subscriber("teleop/cmd_vel", Twist, self.cmd_vel_callback_teleop)
-        self.velocity_subscriber_teleop = rospy.Subscriber("teleop/velocity", Velocity, self.velocity_callback_teleop)
-        self.velocity_subscriber_geofencing = rospy.Subscriber("/geofencing/velocity", Velocity, self.velocity_callback_geofencing)
+        # self.velocity_subscriber_teleop = rospy.Subscriber("teleop/velocity", Velocity, self.velocity_callback_teleop)
+        # self.velocity_subscriber_geofencing = rospy.Subscriber("/geofencing/velocity", Velocity,
+        #                                                        self.velocity_callback_geofencing)
         self.velocity_subscriber_pid = rospy.Subscriber("hover/cmd_vel", Twist, self.cmd_vel_callback_pid)
+        self.external_ctrl_sub = rospy.Subscriber("external_cmd", TargetMsg, self.external_ctrl_callback)
+
         rospy.wait_for_service('hover/stop_pid')
         rospy.wait_for_service('hover/start_pid')
         self.stop_mocap_ctrl = rospy.ServiceProxy('hover/stop_pid', Empty)
         self.start_mocap_ctrl = rospy.ServiceProxy('hover/start_pid', Empty)
         rospy.Service('change_flightmode', ChangeFlightMode, self.callback_change_flightmode)
         self.last_fightmode_update = rospy.Time.now()
-
-
+        self.last_external_cmd = None
+        self.last_external_cmd_update = None
 
     def main_loop(self):
         r = rospy.Rate(RATE)
@@ -92,13 +99,23 @@ class FlightModeManager:
                 self.last_fightmode_update = rospy.Time.now()
             r.sleep()
 
+    def external_ctrl_callback(self, target_msg):
+        assert isinstance(target_msg, TargetMsg)
+        self.last_external_cmd = target_msg
+        self.last_external_cmd_update = rospy.Time.now()
+
+
     def check_for_fallback_mode(self):
+        if self.current_flightmode.id is FlightMode.DISARM:
+            return
         new_mode = ChangeFlightModeRequest()
         new_mode.mode.id = self.current_flightmode.id
         change_mode = True
-        if self.current_flightmode.id in POS_CTRL_MODES and (rospy.Time.now() - self.last_pose_update).to_sec() > POSE_TIME_OUT:
-            new_mode.mode.id = FlightMode.LAND
-        elif self.current_flightmode.id is FlightMode.WANDING and (rospy.Time.now() - self.last_wand_update).to_sec() > POSE_TIME_OUT:
+        if self.current_flightmode.id in POS_CTRL_MODES and (
+            rospy.Time.now() - self.last_pose_update).to_sec() > POSE_TIME_OUT:
+            new_mode.mode.id = FlightMode.MANUAL
+        elif self.current_flightmode.id is FlightMode.WANDING and (
+            rospy.Time.now() - self.last_wand_update).to_sec() > POSE_TIME_OUT:
             new_mode.mode.id = FlightMode.POS_HOLD
         elif self.current_flightmode.id is FlightMode.LAND:
             if self.last_pose_msg.pose.position.z <= LAND_HEIGHT:
@@ -111,6 +128,9 @@ class FlightModeManager:
                 new_mode.mode.id = FlightMode.POS_HOLD
             else:
                 change_mode = False
+        elif self.current_flightmode.id is FlightMode.EXTERNAL_CONTROL and self.last_external_cmd_update is not None and (
+            rospy.Time.now() - self.last_external_cmd_update).to_sec() > POSE_TIME_OUT:
+            new_mode.mode.id = FlightMode.POS_HOLD
         else:
             change_mode = False
         if change_mode:
@@ -121,7 +141,6 @@ class FlightModeManager:
         self.last_geo_fencing_update = rospy.Time.now()
         self.last_geo_fencing_vel = vel
 
-
     def callback_cf_pose(self, pose_msg):
         self.prev_pose_msg = copy.deepcopy(self.last_pose_msg)
         self.last_pose_update = rospy.Time.now()
@@ -129,8 +148,7 @@ class FlightModeManager:
         if self.prev_pose_msg is not None:
             if euler_distance_pose(self.prev_pose_msg, self.last_pose_msg) > 0.1:
                 print "arg!!!! mocap {0}".format(euler_distance_pose(self.prev_pose_msg, self.last_pose_msg))
-                print self.last_pose_msg
-                print self.prev_pose_msg
+
 
     def callback_wand_pose(self, pose_msg):
         self.last_wand_update = rospy.Time.now()
@@ -142,13 +160,13 @@ class FlightModeManager:
             wand_target.header.frame_id = self.wand_frame_id
             target = None
             try:
-                self.tf_listen.waitForTransform(self.wand_frame_id, pose_msg.header.frame_id, pose_msg.header.stamp, rospy.Duration(0.2))
+                self.tf_listen.waitForTransform(self.wand_frame_id, pose_msg.header.frame_id, pose_msg.header.stamp,
+                                                rospy.Duration(0.2))
                 target = self.tf_listen.transformPose(WORLD_FRAME_ID, wand_target)
             except tf.Exception as e:
                 rospy.logwarn("Transform failed: %s", e)
             if target is not None:
                 self.target_pose = target
-
 
     def callback_change_flightmode(self, msg):
         assert isinstance(msg, ChangeFlightModeRequest)
@@ -156,16 +174,16 @@ class FlightModeManager:
         response.success = True
         if msg.mode.id is FlightMode.WANDING and (rospy.Time.now() - self.last_wand_update).to_sec() > POSE_TIME_OUT:
             rospy.logwarn("Can't do wand-mode, didn't see the wand in a while :)")
-            response = False
+            response.success = False
         elif msg.mode.id is FlightMode.TAKEOFF:
-            rospy.logwarn("current_mode == TAKEOFF")
-            #set takeoff target height
+            rospy.logwarn("TAKEOFF")
+            # set takeoff target height
             self.target_pose = copy.deepcopy(self.last_pose_msg)
             self.target_pose.pose.position.z += TAKEOFF_HEIGHT
         elif msg.mode.id is FlightMode.POS_HOLD:
             self.target_pose = copy.deepcopy(self.last_pose_msg)
         elif msg.mode.id is FlightMode.LAND:
-            rospy.logwarn("current_mode == LAND")
+            rospy.logwarn("LAND")
             self.target_pose = copy.deepcopy(self.last_pose_msg)
             self.target_pose.pose.position.z = 0
         if response.success:
@@ -180,10 +198,8 @@ class FlightModeManager:
                 self.stop_mocap_ctrl()
         return response
 
-
-
     def publish_target_msg(self):
-        #update time stamp for modes fixed target positions
+        # update time stamp for modes fixed target positions
         if self.target_pose is not None:
             self.pub_target_msg.publish(self.target_msg)
 
@@ -194,59 +210,68 @@ class FlightModeManager:
 
     def gen_target_vel(self):
         vel = Velocity()
-        assert isinstance(self.velocity_teleop, Velocity)
-        if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
-            vel.x = self.velocity_teleop.x
-            vel.y = self.velocity_teleop.y
-            vel.z = self.velocity_teleop.z
-            vel.yaw = self.velocity_teleop.yaw
+        # if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
+        #     vel.x = self.velocity_teleop.x
+        #     vel.y = self.velocity_teleop.y
+        #     vel.z = self.velocity_teleop.z
+        #     vel.yaw = self.velocity_teleop.yaw
 
-        #controller active
-        if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
-            vel.x = self.velocity_teleop.x
-        if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
-            vel.y = self.velocity_teleop.y
-        if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
-            vel.yaw = self.velocity_teleop.yaw
+        # toDo use EXTERNAL TOPIC FOR JOY
+
+        # controller active
+        # if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
+        #     vel.x = self.velocity_teleop.x
+        # if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
+        #     vel.y = self.velocity_teleop.y
+        # if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
+        #     vel.yaw = self.velocity_teleop.yaw
 
         if self.current_flightmode.id is FlightMode.LAND:
             vel.z = LAND_VEL
         if self.current_flightmode.id is FlightMode.TAKEOFF:
             vel.z = TAKEOFF_VEL
 
-        if self.last_geo_fencing_update is not None and (rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
-            vel.x = self.last_geo_fencing_vel.x
-            vel.y = self.last_geo_fencing_vel.y
+        if (self.current_flightmode.id is FlightMode.EXTERNAL_CONTROL and self.last_external_cmd is not None) or (self.tune_pid and self.external_control_active()):
+            vel = self.last_external_cmd.target_velocity
+        # if self.last_geo_fencing_update is not None and (
+        #     rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
+        #     vel.x = self.last_geo_fencing_vel.x
+        #     vel.y = self.last_geo_fencing_vel.y
         return vel
 
     def gen_target_pose(self):
-        if self.current_flightmode.id in [FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.LAND, FlightMode.TEST_VEL_JOY]:
+        if self.current_flightmode.id in [FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.LAND]:
             self.target_pose.header.stamp = rospy.Time.now()
+        elif (self.current_flightmode.id is FlightMode.EXTERNAL_CONTROL and self.last_external_cmd is not None) or (self.tune_pid and self.external_control_active()):
+            self.target_pose = self.last_external_cmd.target_pose
         return self.target_pose
 
     def joy_active(self):
-        return abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH
+        return abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH or abs(
+            self.velocity_teleop.y) > CONTROLLER_RP_THRESH or abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH
+
+    def external_control_active(self):
+        if self.last_external_cmd is None:
+            return False
+        velo = self.last_external_cmd.target_velocity
+        max_value = max(abs(velo.yaw), max(abs(velo.z), max(abs(velo.x), abs(velo.y))))
+        return max_value > CONTROLLER_RP_THRESH
 
     def gen_control_mode(self):
         mode = ControlMode()
         mode.x_mode = mode.y_mode = mode.z_mode = mode.yaw_mode = ControlMode.POSITION
-        if self.current_flightmode.id in VEL_CTRL_MODES or (self.joy_active() and self.current_flightmode.id in POS_CTRL_MODES):
-            if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
-                mode.x_mode = mode.y_mode = mode.z_mode = mode.yaw_mode = ControlMode.VELOCITY
-            if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
-                mode.x_mode = ControlMode.VELOCITY
-            if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
-                mode.y_mode = ControlMode.VELOCITY
-            if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
-                mode.yaw_mode = ControlMode.VELOCITY
-        elif self.current_flightmode.id in [FlightMode.TAKEOFF, FlightMode.LAND]:
+        if self.current_flightmode.id in [FlightMode.TAKEOFF, FlightMode.LAND]:
             mode.z_mode = ControlMode.VELOCITY
+        elif (self.current_flightmode.id is FlightMode.EXTERNAL_CONTROL and self.last_external_cmd is not None) or (self.tune_pid and self.external_control_active()):
+            if self.last_external_cmd.control_mode is not None:
+                mode = self.last_external_cmd.control_mode
 
-
-        if self.last_geo_fencing_update is not None and (rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
-            mode.x_mode = mode.y_mode = ControlMode.VELOCITY
-
+        # if self.last_geo_fencing_update is not None and (
+        #     rospy.Time.now() - self.last_geo_fencing_update).to_sec() <= POSE_TIME_OUT:
+        #     mode.x_mode = mode.y_mode = ControlMode.VELOCITY
         return mode
+
+
 
 
     def send_vel_cmd(self):

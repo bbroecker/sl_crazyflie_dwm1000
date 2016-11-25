@@ -5,9 +5,8 @@ import math
 from geometry_msgs.msg import Twist, PoseStamped
 from sl_crazyflie_msgs.msg import FlightMode, TargetMsg, ControlMode, Velocity
 from tf import transformations
-from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest, ChangeFlightModeResponse
-from std_srvs.srv import Empty
-import copy
+from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest
+from flightmode_manager import POS_CTRL_MODES
 
 
 def get_yaw_from_msg(msg):
@@ -25,30 +24,49 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
 class GeoFenchingNode:
     def __init__(self):
         pose_topic = rospy.get_param("pose_topic", "/Robot_1/pose")
-        vel_topic = rospy.get_param("vel_topic", "/geofencing/velocity")
-        self.min_x = rospy.get_param("min_x", -1.2)
-        self.min_y = rospy.get_param("min_y", -1.2)
-        self.max_x = rospy.get_param("max_x", 0.1)
-        self.max_y = rospy.get_param("max_y", 0.3)
+        vel_topic = rospy.get_param("target_topic", "geofencing/external_cmd")
+        self.min_x = rospy.get_param("~min_x", -1.2)
+        self.min_y = rospy.get_param("~min_y", -1.2)
+        self.max_x = rospy.get_param("~max_x", 0.1)
+        self.max_y = rospy.get_param("~max_y", 0.3)
         self.recover_speed = rospy.get_param("recover_speed", 0.3)
-        self.buffer_len = rospy.get_param("buffer_len", 0.1)
+        self.buffer_len = rospy.get_param("buffer_len", 0.05)
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.callback_robot_pose)
-        self.vel_pub = rospy.Publisher(vel_topic, Velocity)
+        self.target_pub = rospy.Publisher(vel_topic, TargetMsg)
         self.is_active = False
+        self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)
+        self.mode_sub = rospy.Subscriber("flight_mode", FlightMode, self.mode_callback)
+        self.fight_mode_backup = None
+        self.current_flight_mode = FlightMode()
+        self.current_flight_mode.id = FlightMode.MANUAL
 
     def callback_robot_pose(self, pose):
-        if not self.is_active and self.is_outside_fenc(pose):
+        if not self.is_active and self.is_outside_fenc(pose) and self.current_flight_mode.id in POS_CTRL_MODES:
             self.is_active = True
-
+            self.fight_mode_backup = self.current_flight_mode
+            cfm_msg = ChangeFlightModeRequest()
+            cfm_msg.mode.id = FlightMode.EXTERNAL_CONTROL
+            self.change_flight_mode.call(cfm_msg)
         if self.is_active and self.is_outside_fenc(pose, self.buffer_len):
             # calculate velocity
             # publish velocity
-            self.calculate_velo(pose)
-        else:
+            msg = self.calculate_target_msg(pose)
+            self.target_pub.publish(msg)
+        elif self.is_active:
+            cfm_msg = ChangeFlightModeRequest()
+            cfm_msg.mode.id = FlightMode.POS_HOLD
             self.is_active = False
+            self.change_flight_mode.call(cfm_msg)
 
-    def calculate_velo(self, pose):
 
+    def mode_callback(self, mode):
+        self.current_flight_mode = mode
+
+    def calculate_target_msg(self, pose):
+        msg = TargetMsg()
+        msg.control_mode = ControlMode()
+        msg.control_mode.x_mode = msg.control_mode.y_mode = ControlMode.VELOCITY
+        msg.control_mode.z_mode = msg.control_mode.yaw_mode = ControlMode.POSITION
         velo = Velocity()
         if pose.pose.position.x < self.min_x + self.buffer_len:
             velo.x = self.recover_speed
@@ -70,7 +88,9 @@ class GeoFenchingNode:
         rotation_angle = -current_yaw
 
         velo.x, velo.y = rotate_vector_by_angle(velo.x, velo.y, rotation_angle)
-        self.vel_pub.publish(velo)
+        msg.target_velocity = velo
+        msg.target_pose = pose
+        return msg
 
 
     def is_outside_fenc(self, pose, buffer=0.0):

@@ -57,7 +57,6 @@ class HoverController(object):
         rospy.init_node('pid_hover')
 
         cf_pose_topic = rospy.get_param("cf_pose_topic", "/Robot_1/pose")
-        wand_pose_topic = rospy.get_param("wand_pose_topic", "/Robot_2/pose")
 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
         self.pub_target_height = rospy.Publisher("hover/target_height", Float32, queue_size=10)
@@ -160,8 +159,8 @@ class HoverController(object):
         rospy.Service('hover/stop_pid', Empty, self.callback_stop_pos_control)
         rospy.Service('hover/start_pid', Empty, self.callback_start_pos_control)
         # x, y or z are increase about the step size, the String has to contain x,y, or z
-        rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_optitrack_pose)
-        rospy.Subscriber('/main_crtl/target_msg', TargetMsg, self.callback_target_msg)
+        rospy.Subscriber(cf_pose_topic, PoseStamped, self.callback_optitrack_pose)
+        rospy.Subscriber('main_crtl/target_msg', TargetMsg, self.callback_target_msg)
 
         rospy.loginfo("Started hover pid controller")
 
