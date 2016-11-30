@@ -54,12 +54,12 @@ class PidController(object):
     current_output = 0.0
 
     def __init__(self, kp, ki, kd, i_min=None, i_max=None, d_avg_max_count=1, debug=False):
+        self.d_avg_max_count = d_avg_max_count
         self.set_pid_parameters(kp, ki, kd)
         self.i_max = i_max
         self.i_min = i_min
         self.debug = debug
         self.d_avg_filter = [0.0 for i in range(d_avg_max_count)]
-        self.d_avg_max_count = d_avg_max_count
         if self.kd > 0.0 or self.kd < 0.0:
             print self.kd
         
@@ -72,7 +72,7 @@ class PidController(object):
         self.i_error = 0.0
         self.d_error = 0.0
         self.current_output = 0.0
-        self.d_avg_filter = []
+        self.d_avg_filter = [0.0 for i in range(self.d_avg_max_count)]
 
     def set_pid_parameters(self, kp=None, ki=None, kd=None):
         if kp is not None:

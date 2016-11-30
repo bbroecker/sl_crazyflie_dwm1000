@@ -11,7 +11,7 @@ import copy
 RATE = 200.0
 POSE_TIME_OUT = 0.5
 CONTROLLER_RP_THRESH = 0.05
-TAKEOFF_HEIGHT = 0.6
+TAKEOFF_HEIGHT = 1.3
 WAND_DISTANCE = 0.5
 POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.10
@@ -179,7 +179,7 @@ class FlightModeManager:
             rospy.logwarn("TAKEOFF")
             # set takeoff target height
             self.target_pose = copy.deepcopy(self.last_pose_msg)
-            self.target_pose.pose.position.z += TAKEOFF_HEIGHT
+            self.target_pose.pose.position.z = TAKEOFF_HEIGHT
         elif msg.mode.id is FlightMode.POS_HOLD:
             self.target_pose = copy.deepcopy(self.last_pose_msg)
         elif msg.mode.id is FlightMode.LAND:

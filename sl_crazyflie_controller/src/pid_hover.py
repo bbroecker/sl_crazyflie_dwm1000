@@ -27,8 +27,8 @@ WAND_DISTANCE = 1.0
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
-AVG_SPEED_SAMPLE_SIZE = 4
-TARGET_SPEED_SAMPLE_SIZE = RATE/3
+AVG_SPEED_SAMPLE_SIZE = RATE/50
+TARGET_SPEED_SAMPLE_SIZE = 1
 
 
 def thrust_to_percent(thrust):
@@ -98,6 +98,8 @@ class HoverController(object):
         self.avg_global_y_speed = []
         self.avg_local_y_speed = []
 
+        self.avg_climb_rate = []
+
         self.target_speed_x_avg_list = []
         self.target_speed_y_avg_list = []
         self.target_climb_rate_list = []
@@ -105,8 +107,8 @@ class HoverController(object):
         self.take_off_height = 1
         self.pos_3d_control_active = False
 
-        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust, 0, 0.75, True)
-        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate, -0.4, 0.4)
+        self.pid_thrust = PidController(kp_thrust, ki_thrust, kd_thrust, 0, 0.75, 8)
+        self.pid_climb_rate = PidController(kp_climb_rate, ki_climb_rate, kd_climb_rate, -0.4, 0.4, 6)
 
         # pid xy
         kp_x = 11.7
@@ -138,10 +140,10 @@ class HoverController(object):
         self.max_xy_error = 1.5
         self.pitch_roll_cap = 20.0
 
-        self.pid_xy_pitch = PidController(kp_x, ki_x, kd_x, -10,10)
-        self.pid_xy_roll = PidController(kp_y, ki_y, kd_y, -10, 10)
-        self.pid_xy_x_speed = PidController(kp_x_speed, ki_x_speed, kd_x_speed, -0.5, 0.5)
-        self.pid_xy_y_speed = PidController(kp_y_speed, ki_y_speed, kd_y_speed, -0.5, 0.5)
+        self.pid_xy_pitch = PidController(kp_x, ki_x, kd_x, -7, 7, 8)
+        self.pid_xy_roll = PidController(kp_y, ki_y, kd_y, -7, 7, 8)
+        self.pid_xy_x_speed = PidController(kp_x_speed, ki_x_speed, kd_x_speed, -0.5, 0.5, 6)
+        self.pid_xy_y_speed = PidController(kp_y_speed, ki_y_speed, kd_y_speed, -0.5, 0.5, 6)
 
         self.max_yaw_angle_error = 1.7
         self.max_yaw_cmd = 200
@@ -385,13 +387,20 @@ class HoverController(object):
         else:
             target_climb_rate = self.last_target_msg.target_velocity.z
 
+
         self.target_climb_rate_list.append(target_climb_rate)
         if len(self.target_climb_rate_list) > TARGET_SPEED_SAMPLE_SIZE:
             self.target_climb_rate_list.pop(0)
         target_climb_rate = float(sum(self.target_climb_rate_list)) / len(self.target_climb_rate_list)
 
+
         current_climb_rate = (current_altitude - self.prev_altitude) / dt
         climb_rate_error = target_climb_rate - current_climb_rate
+
+        self.avg_climb_rate.append(current_climb_rate)
+        if len(self.avg_climb_rate) > AVG_SPEED_SAMPLE_SIZE:
+            self.avg_climb_rate.pop(0)
+        current_climb_rate = float(sum(self.avg_climb_rate)) / len(self.avg_climb_rate)
 
         # climb_rate to thrust pid
 
@@ -431,6 +440,7 @@ class HoverController(object):
         self.avg_local_x_speed = []
         self.avg_global_x_speed = []
         self.avg_local_y_speed = []
+        self.avg_climb_rate = []
         self.target_speed_x_avg_list = []
         self.target_speed_y_avg_list = []
         self.target_climb_rate_list = []
