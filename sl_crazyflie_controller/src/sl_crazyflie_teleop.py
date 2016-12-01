@@ -8,19 +8,19 @@ import math
 from sl_crazyflie_msgs.msg import Velocity, FlightMode, TargetMsg, ControlMode
 from flightmode_manager import POS_CTRL_MODES
 
-
 TAKEOFF = 3
 STEP_SIZE = 0.15
 WANDING = 0
 DEADMAN_SWITCH = 10
 DISARM = 14
+THROW = 12
+
 
 def map_value(value, in_min, in_max, out_min, out_max):
     return ((value - in_min) * (out_max - out_min) / (in_max - in_min)) + out_min
 
+
 class Teleop:
-
-
     def __init__(self):
         target_topic = rospy.get_param("target_topic", "teleop/external_cmd")
         self.pid_tuning_active = rospy.get_param("~pid_tuning_active", False)
@@ -34,9 +34,8 @@ class Teleop:
 
         self.pid_active_button = rospy.get_param("~pid_activate_axis", 11)
 
-        self.prev_pressed = {'takeoff': False, 'up': False, 'down': False, 'left': False, 'right': False, 'forward': False, 'backward': False, 'wanding': False, 'disarm': False}
-
-
+        self.prev_pressed = {'takeoff': False, 'up': False, 'down': False, 'left': False, 'right': False,
+                             'forward': False, 'backward': False, 'wanding': False, 'disarm': False, 'throw': False}
 
         self.current_flight_mode_id = None
         self.controller_active = False
@@ -54,7 +53,7 @@ class Teleop:
         self.axes["yaw"]["axis"] = rospy.get_param("~yaw_axis", 0)
 
         self.axes["x"]["max"] = rospy.get_param("~x_joy_max", 30)
-        self.axes["y"]["max"] = rospy.get_param("~y_joy_max", -30)#invert
+        self.axes["y"]["max"] = rospy.get_param("~y_joy_max", -30)  # invert
         self.axes["z"]["max"] = rospy.get_param("~z_joy_max", 60000)
         self.axes["yaw"]["max"] = rospy.get_param("~yaw_joy_max", -200)
 
@@ -63,7 +62,6 @@ class Teleop:
         self.z_max_vel = rospy.get_param("~z_vel_max", 0.1)
         self.yaw_max_vel = rospy.get_param("~yaw_vel_max", 0.5)
         self.joy_value_ = Twist()
-
 
     def gen_target_msg(self, twist):
         assert isinstance(twist, Twist)
@@ -83,8 +81,6 @@ class Teleop:
         msg.control_mode.x_mode = msg.control_mode.y_mode = msg.control_mode.z_mode = msg.control_mode.yaw_mode = ControlMode.VELOCITY
         return msg
 
-
-
     def joy_callback(self, joy_msg):
         self.check_button_events(joy_msg)
         self.joy_value_.linear.x = self.get_axis(joy_msg, self.axes['x']['axis']) * self.axes["x"]["max"]
@@ -93,14 +89,14 @@ class Teleop:
         self.joy_value_.angular.z = self.get_axis(joy_msg, self.axes['yaw']['axis']) * self.axes["yaw"]["max"]
 
         self.manual_mode_publisher_.publish(self.joy_value_)
-        #if deadman switch....
+        # if deadman switch....
         if self.controller_active:
             self.target_msg_publisher_.publish(self.gen_target_msg(self.joy_value_))
 
-        # if self.get_button(joy_msg, self.button['on']):
-        #     self.on_client_()
-        # if self.get_button(joy_msg, self.button['off']):
-        #     self.off_client_()
+            # if self.get_button(joy_msg, self.button['on']):
+            #     self.on_client_()
+            # if self.get_button(joy_msg, self.button['off']):
+            #     self.off_client_()
 
     def flight_mode_callback(self, mode):
         assert isinstance(mode, FlightMode)
@@ -121,7 +117,7 @@ class Teleop:
                 ch_flm.mode.id = FlightMode.POS_HOLD
 
             else:
-                #ch_flm.mode.id = FlightMode.WANDING
+                # ch_flm.mode.id = FlightMode.WANDING
                 ch_flm.mode.id = FlightMode.WANDING
             self.current_flight_mode_id = ch_flm.mode.id
             self.change_flight_mode(ch_flm)
@@ -145,12 +141,16 @@ class Teleop:
             if self.current_flight_mode_id is FlightMode.DISARM:
                 ch_flm.mode.id = FlightMode.MANUAL
             else:
-                #ch_flm.mode.id = FlightMode.WANDING
+                # ch_flm.mode.id = FlightMode.WANDING
                 ch_flm.mode.id = FlightMode.DISARM
             self.change_flight_mode(ch_flm)
             self.current_flight_mode_id = ch_flm.mode.id
 
-
+        if self.is_button_released('throw', joy_msgs.buttons[THROW]):
+            if self.current_flight_mode_id is not FlightMode.THROW_LAUNCH:
+                ch_flm.mode.id = FlightMode.THROW_LAUNCH
+                self.change_flight_mode(ch_flm)
+                self.current_flight_mode_id = ch_flm.mode.id
 
     def get_axis(self, joy_msg, axis):
         if axis == 0 or axis > len(joy_msg.axes):
@@ -167,7 +167,6 @@ class Teleop:
             self.prev_pressed[button_name] = False
             return True
         return False
-
 
     def get_button(self, joy_msgs, button_idx):
         if button_idx <= 0 or button_idx > len(joy_msgs.axes):

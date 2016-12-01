@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="uri" default="radio://0/60/250K" />
-  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_dev" default="/dev/input/js1" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>

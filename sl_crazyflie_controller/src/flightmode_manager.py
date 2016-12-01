@@ -8,6 +8,7 @@ from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest, Cha
 from std_srvs.srv import Empty
 import copy
 
+
 RATE = 200.0
 POSE_TIME_OUT = 0.5
 CONTROLLER_RP_THRESH = 0.05
@@ -17,7 +18,11 @@ POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.10
 LAND_VEL = -0.25
 TAKEOFF_VEL = 0.25
-FLIGHT_MODE_UPDATERATE = 2  # Hz
+Z_VEL_SAMPLE_SIZE = 10
+MAX_THROW_HEIGHT = 2.5
+THROW_MOTOR_SPEED = 30000 #45500
+MIN_THROW_SPEED = 0.6 #m/s
+FLIGHT_MODE_UPDATERATE = 2  # Publish current flight mode in 2 Hz
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
@@ -34,6 +39,8 @@ def euler_distance_pose(pose1, pose2):
         pose1.pose.position.y - pose2.pose.position.y, 2) +
                      math.pow(pose1.pose.position.z - pose2.pose.position.z, 2))
 
+class ThrowLaunchState:
+    DETECT_THROW, STABILIZE = range(2)
 
 class FlightModeManager:
     def __init__(self):
@@ -50,6 +57,7 @@ class FlightModeManager:
         self.last_pose_update = None
         self.last_pose_msg = None
         self.prev_pose_msg = None
+        self.current_thow_launch_state = None
 
         self.last_geo_fencing_update = None
         self.last_geo_fencing_vel = None
@@ -58,15 +66,23 @@ class FlightModeManager:
         self.tune_pid = rospy.get_param("~pid_tuning_active", False)
         self.target_pose = None
         self.target_velocity = None
+        self.avg_z_vel_list = [0.0 for i in range(Z_VEL_SAMPLE_SIZE)]
+        self.avg_z_vel = None
+
+
+
         self.target_msg = TargetMsg()
+        self.wand_frame_id = rospy.get_param("wand_frame_id", "/Robot_2/base_link")
+        cf_pose_topic = rospy.get_param("cf_pose_topic", "/Robot_1/pose")
+        wand_pose_topic = rospy.get_param("wand_pose_topic", "/Robot_2/pose")
         self.wand_frame_id = rospy.get_param("wand_frame_id", "/Robot_2/base_link")
 
         self.pub_target_msg = rospy.Publisher("main_crtl/target_msg", TargetMsg, queue_size=1)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.pub_flight_mode = rospy.Publisher("flight_mode", FlightMode, queue_size=1)
 
-        self.wand_pose_sub = rospy.Subscriber('/Robot_2/pose', PoseStamped, self.callback_wand_pose)
-        self.cf_pose_sub = rospy.Subscriber('/Robot_1/pose', PoseStamped, self.callback_cf_pose)
+        self.wand_pose_sub = rospy.Subscriber(wand_pose_topic, PoseStamped, self.callback_wand_pose)
+        self.cf_pose_sub = rospy.Subscriber(cf_pose_topic, PoseStamped, self.callback_cf_pose)
         self.manual_mode_subscriber_teleop = rospy.Subscriber("teleop/cmd_vel", Twist, self.cmd_vel_callback_teleop)
         # self.velocity_subscriber_teleop = rospy.Subscriber("teleop/velocity", Velocity, self.velocity_callback_teleop)
         # self.velocity_subscriber_geofencing = rospy.Subscriber("/geofencing/velocity", Velocity,
@@ -111,7 +127,17 @@ class FlightModeManager:
         new_mode = ChangeFlightModeRequest()
         new_mode.mode.id = self.current_flightmode.id
         change_mode = True
-        if self.current_flightmode.id in POS_CTRL_MODES and (
+        if self.current_flightmode.id is FlightMode.THROW_LAUNCH:
+            change_mode = False
+            if self.current_thow_launch_state is ThrowLaunchState.DETECT_THROW and self.avg_z_vel > MIN_THROW_SPEED:
+                self.current_thow_launch_state = ThrowLaunchState.STABILIZE
+                print "STABILIZE"
+            elif self.current_thow_launch_state is ThrowLaunchState.STABILIZE and (self.avg_z_vel < MIN_THROW_SPEED or self.last_pose_msg.pose.position.z >= MAX_THROW_HEIGHT):
+                change_mode = True
+                self.current_thow_launch_state = ThrowLaunchState.DETECT_THROW
+                print "POS_HOLD"
+                new_mode.mode.id = FlightMode.POS_HOLD
+        elif self.current_flightmode.id in POS_CTRL_MODES and (
             rospy.Time.now() - self.last_pose_update).to_sec() > POSE_TIME_OUT:
             new_mode.mode.id = FlightMode.MANUAL
         elif self.current_flightmode.id is FlightMode.WANDING and (
@@ -142,10 +168,18 @@ class FlightModeManager:
         self.last_geo_fencing_vel = vel
 
     def callback_cf_pose(self, pose_msg):
+        prev_update_time = self.last_pose_update
         self.prev_pose_msg = copy.deepcopy(self.last_pose_msg)
         self.last_pose_update = rospy.Time.now()
         self.last_pose_msg = pose_msg
         if self.prev_pose_msg is not None:
+            #update z velocity
+            cf_z_vel = (pose_msg.pose.position.z - self.prev_pose_msg.pose.position.z) / (self.last_pose_update - prev_update_time).to_sec()
+            self.avg_z_vel_list.append(cf_z_vel)
+            if len(self.avg_z_vel_list) > Z_VEL_SAMPLE_SIZE:
+                self.avg_z_vel_list.pop(0)
+            self.avg_z_vel = sum(self.avg_z_vel_list) / len(self.avg_z_vel_list)
+            #check for mocap jumps
             if euler_distance_pose(self.prev_pose_msg, self.last_pose_msg) > 0.1:
                 print "arg!!!! mocap {0}".format(euler_distance_pose(self.prev_pose_msg, self.last_pose_msg))
 
@@ -186,6 +220,8 @@ class FlightModeManager:
             rospy.logwarn("LAND")
             self.target_pose = copy.deepcopy(self.last_pose_msg)
             self.target_pose.pose.position.z = 0
+        elif msg.mode.id is FlightMode.THROW_LAUNCH:
+            self.current_thow_launch_state = ThrowLaunchState.DETECT_THROW
         if response.success:
             prev_flightmode = self.current_flightmode.id
             self.current_flightmode.id = msg.mode.id
@@ -210,22 +246,6 @@ class FlightModeManager:
 
     def gen_target_vel(self):
         vel = Velocity()
-        # if self.current_flightmode.id is FlightMode.TEST_VEL_JOY:
-        #     vel.x = self.velocity_teleop.x
-        #     vel.y = self.velocity_teleop.y
-        #     vel.z = self.velocity_teleop.z
-        #     vel.yaw = self.velocity_teleop.yaw
-
-        # toDo use EXTERNAL TOPIC FOR JOY
-
-        # controller active
-        # if abs(self.velocity_teleop.x) > CONTROLLER_RP_THRESH:
-        #     vel.x = self.velocity_teleop.x
-        # if abs(self.velocity_teleop.y) > CONTROLLER_RP_THRESH:
-        #     vel.y = self.velocity_teleop.y
-        # if abs(self.velocity_teleop.yaw) > CONTROLLER_RP_THRESH:
-        #     vel.yaw = self.velocity_teleop.yaw
-
         if self.current_flightmode.id is FlightMode.LAND:
             vel.z = LAND_VEL
         if self.current_flightmode.id is FlightMode.TAKEOFF:
@@ -280,6 +300,9 @@ class FlightModeManager:
         twist = self.cmd_vel_teleop
         if current_mode is FlightMode.DISARM:
             twist = Twist()
+        elif current_mode is FlightMode.THROW_LAUNCH:
+            if self.current_thow_launch_state is ThrowLaunchState.STABILIZE:
+                twist.linear.z = THROW_MOTOR_SPEED
         elif current_mode is FlightMode.MANUAL:
             twist = self.cmd_vel_teleop
         elif current_mode in POS_CTRL_MODES and self.pid_received:

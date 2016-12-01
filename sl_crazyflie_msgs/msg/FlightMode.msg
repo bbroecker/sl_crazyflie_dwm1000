@@ -8,6 +8,7 @@ uint16 VELOCITY_CRTL = 6
 uint16 WANDING = 7
 uint16 TEST_VEL_JOY = 8
 uint16 EXTERNAL_CONTROL = 9
+uint16 THROW_LAUNCH = 10
 
 
 uint16 id
