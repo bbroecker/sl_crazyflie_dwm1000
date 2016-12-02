@@ -9,11 +9,14 @@ class Mixer():
         rospy.init_node("TargetMSGMixer")
         self.teleop_sub = rospy.Subscriber('teleop/external_cmd', TargetMsg, self.teleop_msg_callback)
         self.geofencing_sub = rospy.Subscriber('geofencing/external_cmd', TargetMsg, self.geofencing_msg_callback)
+        self.geofencing_sub = rospy.Subscriber('testing/external_cmd', TargetMsg, self.testing_msg_callback)
         self.pub = rospy.Publisher('external_cmd', TargetMsg, queue_size=1)
         self.last_teleop_update = None
         self.last_teleop_msg = None
         self.last_geofencing_update = None
         self.last_geofencing_msg = None
+        self.last_testing_update = None
+        self.last_testing_msg = None
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
             self.publish_msg()
@@ -28,6 +31,8 @@ class Mixer():
             self.pub.publish(self.last_geofencing_msg)
         elif self.is_valid(self.last_teleop_update):
             self.pub.publish(self.last_teleop_msg)
+        elif self.is_valid(self.last_testing_update):
+            self.pub.publish(self.last_testing_msg)
 
 
     def teleop_msg_callback(self, msg):
@@ -39,6 +44,11 @@ class Mixer():
         assert isinstance(msg, TargetMsg)
         self.last_geofencing_update = rospy.Time.now()
         self.last_geofencing_msg = msg
+
+    def testing_msg_callback(self, msg):
+        assert isinstance(msg, TargetMsg)
+        self.last_testing_update = rospy.Time.now()
+        self.last_testing_msg = msg
 
 if __name__ == '__main__':
     m = Mixer()

@@ -1,0 +1,11 @@
+#goal
+sl_crazyflie_pathfollowing/CircleSegment circle
+sl_crazyflie_pathfollowing/LineSegment line
+float32 max_time
+float32 max_velocity
+uint16 segment_type
+---
+# Define the result
+bool success
+---
+float32 percent_complete

@@ -11,6 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   sl_crazyflie_msgs
   sl_crazyflie_srvs
+  actionlib_msgs
+  actionlib
   std_srvs
 )
 
@@ -50,11 +52,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##  cfg/pid_cfg.cfg
 ##)
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+ add_message_files(
+   FILES
+   CircleSegment.msg
+   LineSegment.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -64,17 +66,18 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate actions in the 'action' folder
-# add_action_files(
-#   FILES
-#   Action1.action
-#   Action2.action
-# )
+ add_action_files(
+   FILES
+   FollowSegment.action
+ )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   sensor_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  actionlib_msgs
+  #   sensor_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
