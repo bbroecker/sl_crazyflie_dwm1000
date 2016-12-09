@@ -72,10 +72,9 @@ class FlightModeManager:
 
 
         self.target_msg = TargetMsg()
-        self.wand_frame_id = rospy.get_param("wand_frame_id", "/Robot_2/base_link")
-        cf_pose_topic = rospy.get_param("cf_pose_topic", "/Robot_1/pose")
-        wand_pose_topic = rospy.get_param("wand_pose_topic", "/Robot_2/pose")
-        self.wand_frame_id = rospy.get_param("wand_frame_id", "/Robot_2/base_link")
+        cf_pose_topic = rospy.get_param("~cf_pose_topic")
+        wand_pose_topic = rospy.get_param("~wand_pose_topic")
+        self.wand_frame_id = rospy.get_param("~wand_frame_id")
 
         self.pub_target_msg = rospy.Publisher("main_crtl/target_msg", TargetMsg, queue_size=1)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)

@@ -9,7 +9,7 @@ class Mixer():
         rospy.init_node("TargetMSGMixer")
         self.teleop_sub = rospy.Subscriber('teleop/external_cmd', TargetMsg, self.teleop_msg_callback)
         self.geofencing_sub = rospy.Subscriber('geofencing/external_cmd', TargetMsg, self.geofencing_msg_callback)
-        self.geofencing_sub = rospy.Subscriber('testing/external_cmd', TargetMsg, self.testing_msg_callback)
+        self.geofencing_sub = rospy.Subscriber('path_following/external_cmd', TargetMsg, self.testing_msg_callback)
         self.pub = rospy.Publisher('external_cmd', TargetMsg, queue_size=1)
         self.last_teleop_update = None
         self.last_teleop_msg = None

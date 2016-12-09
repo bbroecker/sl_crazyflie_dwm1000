@@ -1,8 +1,10 @@
 #goal
 sl_crazyflie_pathfollowing/CircleSegment circle
 sl_crazyflie_pathfollowing/LineSegment line
+bool take_current_pose
 float32 max_time
-float32 max_velocity
+float32 max_travel_vel
+float32 max_angle_vel
 uint16 segment_type
 ---
 # Define the result

@@ -56,7 +56,7 @@ class HoverController(object):
     def __init__(self):
         rospy.init_node('pid_hover')
 
-        cf_pose_topic = rospy.get_param("cf_pose_topic", "/Robot_1/pose")
+        cf_pose_topic = rospy.get_param("~cf_pose_topic")
 
         self.pub_cmd_vel = rospy.Publisher("hover/cmd_vel", Twist, queue_size=10)
         self.pub_target_height = rospy.Publisher("hover/target_height", Float32, queue_size=10)
@@ -217,7 +217,6 @@ class HoverController(object):
             current_thrust_cmd = self.update_thrust(current_altitude, dt)
             current_position = np.array([current_pose_msg.pose.position.x, current_pose_msg.pose.position.y])
 
-            # toDo yaw
             current_yaw = get_yaw_from_msg(current_pose_msg)
             current_target_yaw = get_yaw_from_msg(self.last_target_pose_msg)
             yaw_cmd = self.update_yaw(current_yaw, current_target_yaw, dt)

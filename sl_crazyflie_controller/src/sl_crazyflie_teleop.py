@@ -22,9 +22,10 @@ def map_value(value, in_min, in_max, out_min, out_max):
 
 class Teleop:
     def __init__(self):
-        target_topic = rospy.get_param("target_topic", "teleop/external_cmd")
+        target_topic = rospy.get_param("~target_topic", "teleop/external_cmd")
+        joy_topic = rospy.get_param("~joy_topic", "joy")
         self.pid_tuning_active = rospy.get_param("~pid_tuning_active", False)
-        self.joy_subscriber_ = rospy.Subscriber("joy", Joy, self.joy_callback)
+        self.joy_subscriber_ = rospy.Subscriber(joy_topic, Joy, self.joy_callback)
         self.manual_mode_publisher_ = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
         self.target_msg_publisher_ = rospy.Publisher(target_topic, TargetMsg, queue_size=1)
         self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)

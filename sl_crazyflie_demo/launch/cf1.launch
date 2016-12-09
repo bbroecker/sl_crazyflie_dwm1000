@@ -1,0 +1,68 @@
+<launch>
+  <arg name="wand_pose" default="/Robot_1/pose" />
+  <arg name="wand_frame_id" default="/Robot_2/base_link" />
+  <arg name="cf_uri" default="radio://0/10/1M" />
+  <arg name="cf_pose" default="/Robot_1/pose" />
+<group ns="crazyflie1">
+    <!--<param name="crazyflie/pid_rate/yaw_kp" value="200"/>-->
+    <include file="$(find crazyflie_driver)/launch/crazyflie_add.launch">
+      <arg name="uri" value="$(arg cf_uri)" />
+      <arg name="tf_prefix" value="crazyflie1" />
+      <arg name="enable_logging" value="True" />
+    </include>
+
+    <!-- Note that axis IDs are those from the joystick message plus one, to be able to invert axes by specifiying either positive or negative axis numbers.-->
+    <!-- Axis 2 from joy message thus has to be set as '3' or '-3'(inverted mode) below-->
+    <node name="sl_crazyflie_teleop" pkg="sl_crazyflie_controller" type="sl_crazyflie_teleop.py" output="screen">
+       <param name="x_axis" value="4"/>
+       <param name="y_axis" value="3"/>
+       <param name="z_axis" value="2"/>
+       <param name="yaw_axis" value="1"/>
+       <param name="x_joy_max" value="30"/>
+       <param name="y_joy_max" value="-30"/>
+       <param name="z_joy_max" value="60000"/>
+       <param name="yaw_joy_max" value="-200"/>
+       <param name="x_vel_max" value="1.2"/>
+       <param name="y_vel_max" value="1.2"/>
+       <param name="z_vel_max" value="1.2"/>
+       <param name="yaw_vel_max" value="5.0"/>
+       <param name="pid_tuning_active" value="False"/>
+       <param name="joy_topic" value="/joy" />
+       <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
+    </node>
+
+    <node name="pid_hover" pkg="sl_crazyflie_controller" type="pid_hover.py" output="screen">
+         <param name="cf_pose_topic" value="$(arg cf_pose)"/>
+    </node>
+
+    <node name="geo_fencing" pkg="sl_crazyflie_controller" type="geofencing_node.py" output="screen">
+
+       <param name="min_x" value="-1.65"/>
+       <param name="min_y" value="-2.2"/>
+       <param name="max_x" value="1.5"/>
+       <param name="max_y" value="1.5"/>
+       <param name="pose_topic" value="$(arg cf_pose)"/>
+
+    </node>
+
+    <node name="flightmode_manager" pkg="sl_crazyflie_controller" type="flightmode_manager.py" output="screen">
+	    <param name="wand_frame_id" value="$(arg wand_frame_id)"/>
+	    <param name="pid_tuning_active" value="False"/>
+	    <param name="cf_pose_topic" value="$(arg cf_pose)"/>
+	    <param name="wand_pose_topic" value="$(arg wand_pose)"/>
+	    <param name="pid_tuning_active" value="False"/>
+    </node>
+
+    <node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="target_msg_mux.py"  output="screen">
+    </node>
+
+    <node name="crazyflie_demo_controller" pkg="crazyflie_demo" type="controller.py">
+    </node>
+
+    <node name="segment_follower" pkg="sl_crazyflie_pathfollowing" type="SegmentFollower.py" output="screen">
+    	<param name="pose_topic" value="$(arg cf_pose)"/>
+    </node>
+
+
+  </group>
+  </launch>

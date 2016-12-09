@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+
+<launch>
+
+
+
+  <arg name="joy_dev" default="/dev/input/js0" />
+
+  <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
+  </include>
+
+   <node name="joy" pkg="joy" type="joy_node" output="screen" >
+      <param name="dev" value="$(arg joy_dev)" />
+   </node>
+
+   <node name="coordinator" pkg="sl_crazyflie_pathfollowing" type="Coordinator.py" output="screen">
+    	<rosparam param="cf_name_spaces">["/crazyflie1", "/crazyflie2"]</rosparam>
+    	<rosparam param="waypoint_files">["cf1.yaml", "cf2.yaml"]</rosparam>
+    </node>
+    <node name="tele_follower" pkg="sl_crazyflie_pathfollowing" type="path_teleop.py" output="screen">
+        <param name="joy_topic" value="/joy" />
+    </node>
+
+    <include file="$(find sl_crazyflie_demo)/launch/cf1.launch"/>
+    <include file="$(find sl_crazyflie_demo)/launch/cf2.launch"/>
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap.rviz" />
+
+  <!-- <node pkg="rqt_plot" type="rqt_plot" name="rqt_plot" args="/crazyflie1/temperature/temperature"/> -->
+
+  <!--node pkg="rqt_plot" type="rqt_plot" name="rqt_plot2" args="/crazyflie1/battery"/-->
+
+
+
+
+</launch>

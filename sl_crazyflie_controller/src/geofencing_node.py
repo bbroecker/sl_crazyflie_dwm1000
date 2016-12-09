@@ -23,8 +23,8 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
 
 class GeoFenchingNode:
     def __init__(self):
-        pose_topic = rospy.get_param("pose_topic", "/Robot_1/pose")
-        vel_topic = rospy.get_param("target_topic", "geofencing/external_cmd")
+        pose_topic = rospy.get_param("~pose_topic")
+        vel_topic = rospy.get_param("~target_topic", "geofencing/external_cmd")
         self.min_x = rospy.get_param("~min_x", -1.2)
         self.min_y = rospy.get_param("~min_y", -1.2)
         self.max_x = rospy.get_param("~max_x", 0.1)
