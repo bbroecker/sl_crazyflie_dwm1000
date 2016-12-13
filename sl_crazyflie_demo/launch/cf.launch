@@ -1,13 +1,15 @@
 <launch>
-  <arg name="wand_pose" default="/Robot_1/pose" />
-  <arg name="wand_frame_id" default="/Robot_2/base_link" />
-  <arg name="cf_uri" default="radio://0/10/1M" />
-  <arg name="cf_pose" default="/Robot_1/pose" />
-<group ns="crazyflie1">
+<arg name="wand_pose"/>
+<arg name="wand_frame_id"/>
+<arg name="cf_uri"/>
+<arg name="cf_pose"/>
+<arg name="prefix"/>
+<arg name="external_cmd_topic" default="external_cmd"/>
+
     <!--<param name="crazyflie/pid_rate/yaw_kp" value="200"/>-->
     <include file="$(find crazyflie_driver)/launch/crazyflie_add.launch">
       <arg name="uri" value="$(arg cf_uri)" />
-      <arg name="tf_prefix" value="crazyflie1" />
+      <arg name="tf_prefix" value="$(arg prefix)" />
       <arg name="enable_logging" value="True" />
     </include>
 
@@ -27,7 +29,7 @@
        <param name="z_vel_max" value="1.2"/>
        <param name="yaw_vel_max" value="5.0"/>
        <param name="pid_tuning_active" value="False"/>
-       <param name="joy_topic" value="/joy" />
+       <param name="joy_topic" value="joy" />
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
@@ -46,6 +48,7 @@
     </node>
 
     <node name="flightmode_manager" pkg="sl_crazyflie_controller" type="flightmode_manager.py" output="screen">
+	    <param name="external_cmd_topic" value="$(arg external_cmd_topic)"/>
 	    <param name="wand_frame_id" value="$(arg wand_frame_id)"/>
 	    <param name="pid_tuning_active" value="False"/>
 	    <param name="cf_pose_topic" value="$(arg cf_pose)"/>
@@ -64,5 +67,4 @@
     </node>
 
 
-  </group>
   </launch>

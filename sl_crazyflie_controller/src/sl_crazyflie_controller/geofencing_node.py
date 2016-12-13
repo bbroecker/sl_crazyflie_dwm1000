@@ -47,7 +47,7 @@ class GeoFenchingNode:
             cfm_msg = ChangeFlightModeRequest()
             cfm_msg.mode.id = FlightMode.EXTERNAL_CONTROL
             self.change_flight_mode.call(cfm_msg)
-        if self.is_active and self.is_outside_fenc(pose, self.buffer_len):
+        elif self.is_active and self.is_outside_fenc(pose, self.buffer_len) and self.current_flight_mode.id in POS_CTRL_MODES:
             # calculate velocity
             # publish velocity
             msg = self.calculate_target_msg(pose)

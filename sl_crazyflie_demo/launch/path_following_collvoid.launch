@@ -36,12 +36,21 @@
 
   <!--node pkg="rqt_plot" type="rqt_plot" name="rqt_plot2" args="/crazyflie1/battery"/-->
    <group ns="$(arg cf1_prefix)">
+      <node name="simple_collvoid" pkg="sl_crazyflie_controller" type="simple_collvoid.py" output="screen" >
+      <param name="cf_pose_topic" value="/Robot_1/pose" />
+      <param name="min_xy_dist" value="0.12" />
+      <param name="max_xy_dist" value="0.25" />
+      <param name="max_xy_avoid_vel" value="0.5" />
+      <param name="max_xy_goal_vel" value="0.5" />
+      <rosparam param="obstacle_pose_topics">["/Robot_3/pose"]</rosparam>
+   </node>
    <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
         <arg name="wand_pose" value="/Robot_2/pose" />
         <arg name="wand_frame_id" value="/Robot_2/base_link" />
         <arg name="cf_uri" value="radio://0/10/1M" />
         <arg name="cf_pose" value="/Robot_1/pose" />
         <arg name="prefix" value="$(arg cf1_prefix)" />
+        <arg name="external_cmd_topic" value="collvoid_cmd" />
     </include>
     </group>
 

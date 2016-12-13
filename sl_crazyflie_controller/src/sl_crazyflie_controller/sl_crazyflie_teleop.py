@@ -25,11 +25,11 @@ class Teleop:
         target_topic = rospy.get_param("~target_topic", "teleop/external_cmd")
         joy_topic = rospy.get_param("~joy_topic", "joy")
         self.pid_tuning_active = rospy.get_param("~pid_tuning_active", False)
-        self.joy_subscriber_ = rospy.Subscriber(joy_topic, Joy, self.joy_callback)
+
         self.manual_mode_publisher_ = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
         self.target_msg_publisher_ = rospy.Publisher(target_topic, TargetMsg, queue_size=1)
         self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)
-        self.joy_subscriber_ = rospy.Subscriber("flight_mode", FlightMode, self.flight_mode_callback)
+
         self.on_client_ = rospy.ServiceProxy('on', Empty)
         self.off_client_ = rospy.ServiceProxy('off', Empty)
 
@@ -63,6 +63,8 @@ class Teleop:
         self.z_max_vel = rospy.get_param("~z_vel_max", 0.1)
         self.yaw_max_vel = rospy.get_param("~yaw_vel_max", 0.5)
         self.joy_value_ = Twist()
+        self.joy_subscriber_ = rospy.Subscriber("flight_mode", FlightMode, self.flight_mode_callback)
+        self.joy_subscriber_ = rospy.Subscriber(joy_topic, Joy, self.joy_callback)
 
     def gen_target_msg(self, twist):
         assert isinstance(twist, Twist)

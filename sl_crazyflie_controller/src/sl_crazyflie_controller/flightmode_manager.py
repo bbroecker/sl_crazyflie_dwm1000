@@ -22,7 +22,7 @@ Z_VEL_SAMPLE_SIZE = 10
 MAX_THROW_HEIGHT = 2.5
 THROW_MOTOR_SPEED = 30000 #45500
 MIN_THROW_SPEED = 0.6 #m/s
-FLIGHT_MODE_UPDATERATE = 2  # Publish current flight mode in 2 Hz
+FLIGHT_MODE_UPDATERATE = 20  # Publish current flight mode in 2 Hz
 # TARGET_FRAME_ID = 'Robot_2/base_link'
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
@@ -64,6 +64,7 @@ class FlightModeManager:
 
         self.tf_listen = tf.TransformListener()
         self.tune_pid = rospy.get_param("~pid_tuning_active", False)
+        self.external_cmd_topic = rospy.get_param("~external_cmd_topic")
         self.target_pose = None
         self.target_velocity = None
         self.avg_z_vel_list = [0.0 for i in range(Z_VEL_SAMPLE_SIZE)]
@@ -87,7 +88,7 @@ class FlightModeManager:
         # self.velocity_subscriber_geofencing = rospy.Subscriber("/geofencing/velocity", Velocity,
         #                                                        self.velocity_callback_geofencing)
         self.velocity_subscriber_pid = rospy.Subscriber("hover/cmd_vel", Twist, self.cmd_vel_callback_pid)
-        self.external_ctrl_sub = rospy.Subscriber("external_cmd", TargetMsg, self.external_ctrl_callback)
+        self.external_ctrl_sub = rospy.Subscriber(self.external_cmd_topic, TargetMsg, self.external_ctrl_callback)
 
         rospy.wait_for_service('hover/stop_pid')
         rospy.wait_for_service('hover/start_pid')
@@ -203,6 +204,10 @@ class FlightModeManager:
 
     def callback_change_flightmode(self, msg):
         assert isinstance(msg, ChangeFlightModeRequest)
+        #hack deactive DISARM FIRST
+        if self.current_flightmode.id == FlightMode.DISARM and msg.mode.id is not FlightMode.MANUAL or self.current_flightmode.id == msg.mode.id:
+            return
+
         response = ChangeFlightModeResponse()
         response.success = True
         if msg.mode.id is FlightMode.WANDING and (rospy.Time.now() - self.last_wand_update).to_sec() > POSE_TIME_OUT:

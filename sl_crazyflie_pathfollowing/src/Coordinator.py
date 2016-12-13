@@ -15,12 +15,10 @@ from geometry_msgs.msg import PoseStamped
 from sl_crazyflie_pathfollowing.msg import FollowSegmentAction, FollowSegmentActionGoal, LineSegment, \
     FollowSegmentActionFeedback, CircleSegment, FollowSegmentFeedback, FollowSegmentGoal
 
-from SegmentFollower import quaternon_from_yaw
 
 PATH_FOLDER = "path_files"
 place_holder = {'pose': None, 'waypoint': 0, 'sync': False}
-SWITCH_GOAL_PERCENT = 0.98
-
+SWITCH_GOAL_PERCENT = 0.90
 
 
 class SingleDroneWorker():
@@ -80,7 +78,6 @@ class SingleDroneWorker():
             if not self.is_running:
                 break
             self.progress = 0.0
-            print "1"
             self.client.cancel_all_goals()
             action = FollowSegmentGoal()
             action.segment_type = LineSegment.TYPE_ID
@@ -97,14 +94,12 @@ class SingleDroneWorker():
 
             self.client.send_goal(action, feedback_cb=self.feedback_cb)
             self.wait_for_action()
-            print "2"
         self.way_points_dict = None
         self.is_running = False
 
     def wait_for_action(self):
         rate = rospy.Rate(5.0)
         while self.progress < SWITCH_GOAL_PERCENT and self.is_running:
-            print self.progress
             rate.sleep()
 
     def feedback_cb(self, feedback):
@@ -163,6 +158,7 @@ class Coordinator:
                     print "join!!"
                     t.join()
             i += 1
+        print "mainthread stop"
 
     def cancel_way_following(self, cb):
         self.stop_threads()
