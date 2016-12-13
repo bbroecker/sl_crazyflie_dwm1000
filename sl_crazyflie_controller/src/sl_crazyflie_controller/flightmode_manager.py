@@ -160,7 +160,6 @@ class FlightModeManager:
         else:
             change_mode = False
         if change_mode:
-            print "change mode!! arg"
             self.callback_change_flightmode(new_mode)
 
     def velocity_callback_geofencing(self, vel):
@@ -205,8 +204,11 @@ class FlightModeManager:
     def callback_change_flightmode(self, msg):
         assert isinstance(msg, ChangeFlightModeRequest)
         #hack deactive DISARM FIRST
+        response = ChangeFlightModeResponse()
+        response.success = True
         if self.current_flightmode.id == FlightMode.DISARM and msg.mode.id is not FlightMode.MANUAL or self.current_flightmode.id == msg.mode.id:
-            return
+            response.success = False
+            return response
 
         response = ChangeFlightModeResponse()
         response.success = True

@@ -44,6 +44,7 @@
         <arg name="cf_uri" value="$(arg cf1_uri)" />
         <arg name="cf_pose" value="$(arg cf1_pose)"/>
         <arg name="prefix" value="$(arg cf1_prefix)" />
+        <arg name="external_cmd_topic" value="collvoid_cmd" />
     </include>
     </group>
     <group ns="$(arg cf2_prefix)">
@@ -61,6 +62,7 @@
         <arg name="cf_uri" value="$(arg cf2_uri)" />
         <arg name="cf_pose" value="$(arg cf2_pose)" />
         <arg name="prefix" value="$(arg cf2_prefix)" />
+        <arg name="external_cmd_topic" value="collvoid_cmd" />
     </include>
     </group>
 
