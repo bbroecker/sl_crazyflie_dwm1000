@@ -3,6 +3,7 @@ import math
 import rospy
 from geometry_msgs.msg import PoseStamped
 from sl_crazyflie_msgs.msg import TargetMsg, Velocity
+from tf import transformations
 
 TIME_OUT = 0.1
 
@@ -22,6 +23,18 @@ def xy_distance(pose1, pose2):
 def vel_magnitude(vel):
     assert isinstance(vel, Velocity)
     return math.sqrt(vel.x ** 2 + vel.y ** 2)
+
+
+def get_yaw_from_msg(msg):
+    q = [msg.pose.orientation.x, msg.pose.orientation.y, msg.pose.orientation.z, msg.pose.orientation.w]
+    euler = transformations.euler_from_quaternion(q)
+    return euler[2]
+
+def rotate_vector_by_angle(vector_x, vector_y, angle):
+    x = vector_x * math.cos(angle) - vector_y * math.sin(angle)
+    y = vector_x * math.sin(angle) + vector_y * math.cos(angle)
+
+    return x, y
 
 
 class SimpleCollvoid:
@@ -53,9 +66,16 @@ class SimpleCollvoid:
     def obstacle_vel(self, cf_pose, obs_pose):
         assert isinstance(cf_pose, PoseStamped)
         assert isinstance(obs_pose, PoseStamped)
+        current_yaw = get_yaw_from_msg(cf_pose)
+
+        rotation_angle = -current_yaw
+        x = cf_pose.pose.position.x - obs_pose.pose.position.x
+        y = cf_pose.pose.position.y - obs_pose.pose.position.y
+        rotated_obs_x, rotated_obs_y = rotate_vector_by_angle(x, y, rotation_angle)
+
         vel = Velocity()
-        vel.x = cf_pose.pose.position.x - obs_pose.pose.position.x
-        vel.y = cf_pose.pose.position.y - obs_pose.pose.position.y
+        vel.x = rotated_obs_x
+        vel.y = rotated_obs_y
         return vel
 
     def invert_vel(self, vel):
