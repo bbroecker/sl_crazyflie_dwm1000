@@ -13,7 +13,7 @@ from std_msgs.msg import Float32
 from std_srvs.srv import Empty, EmptyResponse
 from tf import transformations
 
-from pid import PidController
+from sl_crazyflie_controller.pid_controller.pid import PidController
 
 # constants
 # update 30Hz
@@ -50,9 +50,9 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
     return x, y
 
 
-class HoverController(object):
+class VelocityController(object):
     def __init__(self):
-        rospy.init_node('pid_hover')
+
 
         cf_pose_topic = rospy.get_param("~cf_pose_topic")
 
@@ -516,10 +516,3 @@ class HoverController(object):
         rospy.loginfo("Dynreconf callback %s", str(config))
         return config
 
-
-if __name__ == '__main__':
-    try:
-        cont = HoverController()
-        cont.spin()
-    except rospy.ROSInterruptException:
-        pass

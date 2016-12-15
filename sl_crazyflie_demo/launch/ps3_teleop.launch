@@ -4,6 +4,8 @@
   <arg name="uri" default="radio://0/60/250K" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
+  <arg name="wand_topic" default="/Robot_2/pose" />
+  <arg name="wand_frame_id" default="/Robot_2/base_link" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
@@ -17,7 +19,12 @@
       <rosparam param="cf_name_spaces">["/crazyflie1"]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
-   <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
+    <node name="follow_pose" pkg="sl_crazyflie_controller" type="pose_follower.py" output="screen" >
+      <param name="pose_topic" value="$(arg wand_topic)" />
+      <param name="pose_frame_id" value="$(arg wand_frame_id)" />
+      <param name="z_offset" value="0.5" />
+    </node>
+    <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
         <arg name="wand_pose" value="/Robot_2/pose" />
         <arg name="wand_frame_id" value="/Robot_2/base_link" />
         <arg name="cf_uri" value="radio://0/10/1M" />

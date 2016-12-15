@@ -30,7 +30,34 @@
 #  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 #  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
+import math
 import rospy
+import tf
+
+
+def limit_angle(angle):
+    if angle > math.pi:
+        angle -= 2 * math.pi
+    elif angle < -math.pi:
+        angle += 2 * math.pi
+    return angle
+
+def yaw_of_pose(pose):
+    quaternion = [pose.orientation.x, pose.orientation.y,
+                  pose.orientation.z, pose.orientation.w]
+    yaw = tf.transformations.euler_from_quaternion(quaternion)
+    return yaw[2]
+
+def quaternon_from_yaw(yaw):
+    quaternion = tf.transformations.quaternion_from_euler(0, 0, yaw)
+    return quaternion[0], quaternion[1], quaternion[2], quaternion[3]
+
+def rotate_vector_by_angle(vector_x, vector_y, angle):
+    x = vector_x * math.cos(angle) - vector_y * math.sin(angle)
+    y = vector_x * math.sin(angle) + vector_y * math.cos(angle)
+
+    return x, y
+
 
 
 class PidController(object):

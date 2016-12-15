@@ -22,16 +22,18 @@ def map_value(value, in_min, in_max, out_min, out_max):
 
 class Teleop:
     def __init__(self):
-        target_topic = rospy.get_param("~target_topic", "teleop/external_cmd")
+        target_topic = rospy.get_param("~target_topic", "external_cmd")
         joy_topic = rospy.get_param("~joy_topic", "joy")
         self.pid_tuning_active = rospy.get_param("~pid_tuning_active", False)
 
         self.manual_mode_publisher_ = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
         self.target_msg_publisher_ = rospy.Publisher(target_topic, TargetMsg, queue_size=1)
         self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)
+        self.toggle_wanding = rospy.ServiceProxy('external_modes/toggle_pose_follower', Empty)
 
         self.on_client_ = rospy.ServiceProxy('on', Empty)
         self.off_client_ = rospy.ServiceProxy('off', Empty)
+        self.is_wanding = False
 
         self.pid_active_button = rospy.get_param("~pid_activate_axis", 11)
 
@@ -116,14 +118,17 @@ class Teleop:
             self.change_flight_mode(ch_flm)
 
         if self.is_button_released('wanding', joy_msgs.buttons[WANDING]):
-            if self.current_flight_mode_id is FlightMode.WANDING:
+            if self.is_wanding:
                 ch_flm.mode.id = FlightMode.POS_HOLD
-
+                self.current_flight_mode_id = ch_flm.mode.id
+                self.change_flight_mode(ch_flm)
+                self.toggle_wanding.call()
+                self.is_wanding = False
             else:
                 # ch_flm.mode.id = FlightMode.WANDING
-                ch_flm.mode.id = FlightMode.WANDING
-            self.current_flight_mode_id = ch_flm.mode.id
-            self.change_flight_mode(ch_flm)
+                self.toggle_wanding.call()
+                self.is_wanding = True
+
 
         if joy_msgs.buttons[DEADMAN_SWITCH]:
             if not self.controller_active:
