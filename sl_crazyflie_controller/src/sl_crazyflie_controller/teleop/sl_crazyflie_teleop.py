@@ -6,7 +6,7 @@ from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest
 from std_srvs.srv import Empty
 import math
 from sl_crazyflie_msgs.msg import Velocity, FlightMode, TargetMsg, ControlMode
-from flightmode_manager import POS_CTRL_MODES
+from sl_crazyflie_controller.flightmode_manager import POS_CTRL_MODES
 
 TAKEOFF = 3
 STEP_SIZE = 0.15
@@ -29,7 +29,8 @@ class Teleop:
         self.manual_mode_publisher_ = rospy.Publisher("teleop/cmd_vel", Twist, queue_size=1)
         self.target_msg_publisher_ = rospy.Publisher(target_topic, TargetMsg, queue_size=1)
         self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)
-        self.toggle_wanding = rospy.ServiceProxy('external_modes/toggle_pose_follower', Empty)
+        self.start_wanding = rospy.ServiceProxy('external_modes/start_pose_follower', Empty)
+        self.stop_wanding = rospy.ServiceProxy('external_modes/stop_pose_follower', Empty)
 
         self.on_client_ = rospy.ServiceProxy('on', Empty)
         self.off_client_ = rospy.ServiceProxy('off', Empty)
@@ -122,11 +123,11 @@ class Teleop:
                 ch_flm.mode.id = FlightMode.POS_HOLD
                 self.current_flight_mode_id = ch_flm.mode.id
                 self.change_flight_mode(ch_flm)
-                self.toggle_wanding.call()
+                self.stop_wanding.call()
                 self.is_wanding = False
             else:
                 # ch_flm.mode.id = FlightMode.WANDING
-                self.toggle_wanding.call()
+                self.start_wanding.call()
                 self.is_wanding = True
 
 

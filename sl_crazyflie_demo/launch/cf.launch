@@ -33,9 +33,9 @@
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
-    <node name="pid_hover" pkg="sl_crazyflie_controller" type="pid_hover.py" output="screen">
+    <!--node name="pid_hover" pkg="sl_crazyflie_controller" type="flight_controller.py" output="screen">
          <param name="cf_pose_topic" value="$(arg cf_pose)"/>
-    </node>
+    </node-->
 
     <node name="geo_fencing" pkg="sl_crazyflie_controller" type="geofencing_node.py" output="screen">
 
@@ -48,6 +48,8 @@
     </node>
 
     <node name="flight_controller" pkg="sl_crazyflie_controller" type="flight_controller.py" output="screen">
+	    <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/pid_position.yaml"/>
+	    <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/pid_velocity.yaml"/>
 	    <param name="external_cmd_topic" value="$(arg external_cmd_topic)"/>
 	    <param name="wand_frame_id" value="$(arg wand_frame_id)"/>
 	    <param name="pid_tuning_active" value="False"/>

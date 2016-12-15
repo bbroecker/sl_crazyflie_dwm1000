@@ -33,6 +33,7 @@
 import math
 import rospy
 import tf
+from geometry_msgs.msg import PoseStamped
 
 
 def limit_angle(angle):
@@ -43,7 +44,11 @@ def limit_angle(angle):
     return angle
 
 def yaw_of_pose(pose):
-    quaternion = [pose.orientation.x, pose.orientation.y,
+    if isinstance(pose, PoseStamped):
+        quaternion = [pose.pose.orientation.x, pose.pose.orientation.y,
+                      pose.pose.orientation.z, pose.pose.orientation.w]
+    else:
+        quaternion = [pose.orientation.x, pose.orientation.y,
                   pose.orientation.z, pose.orientation.w]
     yaw = tf.transformations.euler_from_quaternion(quaternion)
     return yaw[2]
@@ -83,7 +88,7 @@ class PidController(object):
 
     def __init__(self, kp, ki, kd, i_min=None, i_max=None, d_avg_max_count=1, debug=False):
         self.d_avg_max_count = d_avg_max_count
-        self.set_pid_parameters(kp, ki, kd)
+        self.set_pid_parameters(kp, ki, kd, d_avg_max_count)
         self.i_max = i_max
         self.i_min = i_min
         self.debug = debug
@@ -102,13 +107,15 @@ class PidController(object):
         self.current_output = 0.0
         self.d_avg_filter = [0.0 for i in range(self.d_avg_max_count)]
 
-    def set_pid_parameters(self, kp=None, ki=None, kd=None):
+    def set_pid_parameters(self, kp=None, ki=None, kd=None, d_avg_max_count=1):
         if kp is not None:
             self.kp = kp
         if ki is not None:
             self.ki = ki
         if kd is not None:
             self.kd = kd
+        self.d_avg_max_count = d_avg_max_count
+
         self.reset_pid()
         
     def update(self, error, dt=0.0, error_dot=None):

@@ -1,0 +1,31 @@
+pid_position:
+  x:
+    kp: 3.3
+    ki: 0.0
+    kd: 0.15
+    d_filter_count: 6
+    max_error: 1.5
+  y:
+    kp: 3.3
+    ki: 0.0
+    kd: 0.15
+    d_filter_count: 6
+    max_error: 1.5
+  z:
+    kp: 3.0
+    ki: 0.0
+    kd: 0.6
+    d_filter_count: 6
+    max_error: 2.0
+  yaw:
+    kp: 1.0
+    ki: 0.0
+    kd: 0.0
+    d_filter_count: 1
+    max_error: 1.7
+
+
+
+
+
+

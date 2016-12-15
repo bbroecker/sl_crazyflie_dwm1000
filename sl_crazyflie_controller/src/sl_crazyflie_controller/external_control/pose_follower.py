@@ -28,21 +28,26 @@ class PoseFollower:
         self.cmd_pub = rospy.Publisher('external_cmd', TargetMsg, queue_size=1)
         self.sub = rospy.Subscriber(pose_topic, PoseStamped, self.callback_follow_pose)
         self.change_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)
-        self.toggle_srv = rospy.Service("external_modes/toggle_pose_follower", Empty, self.callback_toggle)
+        self.start_srv = rospy.Service("external_modes/start_pose_follower", Empty, self.callback_start)
+        self.stop_srv = rospy.Service("external_modes/stop_pose_follower", Empty, self.callback_stop)
 
         while not rospy.is_shutdown():
             if self.is_running:
                 self.cmd_pub.publish(self.target_msg)
             rate.sleep()
 
-    def callback_toggle(self, msg):
+    def callback_start(self, msg):
         if not self.is_running:
             req = ChangeFlightModeRequest()
             req.mode.id = FlightMode.EXTERNAL_CONTROL
             self.change_mode.call(req)
             self.is_running = True
-        else:
-            self.is_running = False
+
+        return EmptyResponse()
+
+    def callback_stop(self, msg):
+
+        self.is_running = False
 
         return EmptyResponse()
 

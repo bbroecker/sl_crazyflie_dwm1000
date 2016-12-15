@@ -1,0 +1,26 @@
+pid_velocity:
+  x:
+    kp: 36.6
+    ki: 5.4
+    kd: 1.9
+    d_filter_count: 6
+    max_output: 35
+  y:
+    kp: 36.6
+    ki: 5.4
+    kd: 1.9
+    d_filter_count: 6
+    max_output: 35
+  z:
+    kp: 1.16
+    ki: 0.2
+    kd: 0.05
+    d_filter_count: 6
+    max_output: 1.0
+  yaw:
+    kp: 110.0
+    ki: 0.0
+    kd: 0.0
+    d_filter_count: 1
+    max_output: 200
+  Nom_thrust: 0.7

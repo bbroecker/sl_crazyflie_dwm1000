@@ -6,7 +6,7 @@ from geometry_msgs.msg import Twist, PoseStamped
 from sl_crazyflie_msgs.msg import FlightMode, TargetMsg, ControlMode, Velocity
 from tf import transformations
 from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest
-from flightmode_manager import POS_CTRL_MODES
+from sl_crazyflie_controller.flightmode_manager import POS_CTRL_MODES
 
 
 def get_yaw_from_msg(msg):
