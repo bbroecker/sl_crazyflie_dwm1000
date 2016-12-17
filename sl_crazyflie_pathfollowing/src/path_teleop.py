@@ -21,7 +21,6 @@ class Teleop:
 
         self.prev_pressed = {'path_following': False}
         self.follow_active = False
-        print "safasfsdajflksdaj flkadsjflkadsjflksdajflsdajflkdsajflkdsaj!!!!!!!!!!!!!!!!"
 
     def joy_callback(self, joy_msg):
         if self.is_button_released('path_following', joy_msg.buttons[PATH_FOLLOWING]):

@@ -16,7 +16,7 @@ pid_velocity:
     ki: 0.2
     kd: 0.05
     d_filter_count: 6
-    max_output: 1.0
+    max_output: 0.9
   yaw:
     kp: 110.0
     ki: 0.0

@@ -12,6 +12,7 @@ from std_srvs.srv import Empty
 import copy
 
 from flightmode_manager import FlightModeManager, POS_CTRL_MODES, INTERNAL_TARGET_MODES
+from sl_crazyflie_controller.collvoid.collvoid_controller import CollvoidController
 from sl_crazyflie_controller.pid_controller.pid_position import PositonController
 from sl_crazyflie_controller.pid_controller.pid_velocity import VelocityController
 
@@ -61,7 +62,6 @@ class FlightController:
         self.target_msg.target_pose = PoseStamped()
         cf_pose_topic = rospy.get_param("~cf_pose_topic")
 
-        self.pub_target_msg = rospy.Publisher("main_crtl/target_msg", TargetMsg, queue_size=1)
         self.cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
         self.pub_flight_mode = rospy.Publisher("flight_mode", FlightMode, queue_size=1)
 
@@ -71,6 +71,7 @@ class FlightController:
         self.mode_manager = FlightModeManager()
         self.pid_position = PositonController()
         self.pid_velocity = VelocityController()
+        self.collvoid_controller = CollvoidController()
 
         self.pub_target_pose = rospy.Publisher("hover/target_pose", PoseStamped, queue_size=10)
         self.pub_current_pose = rospy.Publisher("hover/current_pose", PoseStamped, queue_size=10)
@@ -108,7 +109,8 @@ class FlightController:
 
                 else:
                     target_velocity = self.calc_target_velocities(self.target_msg, dt)
-                #toDo collvoid layer
+
+                target_velocity = self.collvoid_controller.calc_collvoid_velocity(self.last_pose_msg, target_velocity)
                 cmd_vel = self.pid_velocity.update_cmd_twist(self.last_pose_msg, target_velocity, dt)
                 self.pub_current_pose.publish(self.last_pose_msg)
                 self.pub_target_pose.publish(self.target_msg.target_pose)

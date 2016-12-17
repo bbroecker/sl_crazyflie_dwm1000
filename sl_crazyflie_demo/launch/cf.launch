@@ -1,9 +1,10 @@
 <launch>
-<arg name="wand_pose"/>
+<arg name="wand_topic"/>
 <arg name="wand_frame_id"/>
 <arg name="cf_uri"/>
 <arg name="cf_pose"/>
 <arg name="prefix"/>
+<arg name="obstacle_manager_id"/>
 <arg name="external_cmd_topic" default="external_cmd"/>
 
     <!--<param name="crazyflie/pid_rate/yaw_kp" value="200"/>-->
@@ -33,36 +34,25 @@
        <!--remap from="cmd_vel" to="teleop/cmd_vel"/-->
     </node>
 
-    <!--node name="pid_hover" pkg="sl_crazyflie_controller" type="flight_controller.py" output="screen">
-         <param name="cf_pose_topic" value="$(arg cf_pose)"/>
-    </node-->
 
-    <node name="geo_fencing" pkg="sl_crazyflie_controller" type="geofencing_node.py" output="screen">
-
-       <param name="min_x" value="-1.65"/>
-       <param name="min_y" value="-2.2"/>
-       <param name="max_x" value="1.5"/>
-       <param name="max_y" value="1.5"/>
-       <param name="pose_topic" value="$(arg cf_pose)"/>
-
+    <node name="follow_pose" pkg="sl_crazyflie_controller" type="pose_follower.py" output="screen" >
+      <param name="pose_topic" value="$(arg wand_topic)" />
+      <param name="pose_frame_id" value="$(arg wand_frame_id)" />
+      <param name="z_offset" value="0.5" />
     </node>
+
 
     <node name="flight_controller" pkg="sl_crazyflie_controller" type="flight_controller.py" output="screen">
 	    <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/pid_position.yaml"/>
 	    <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/pid_velocity.yaml"/>
+	    <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/collvoid.yaml"/>
 	    <param name="external_cmd_topic" value="$(arg external_cmd_topic)"/>
-	    <param name="wand_frame_id" value="$(arg wand_frame_id)"/>
 	    <param name="pid_tuning_active" value="False"/>
 	    <param name="cf_pose_topic" value="$(arg cf_pose)"/>
-	    <param name="wand_pose_topic" value="$(arg wand_pose)"/>
 	    <param name="pid_tuning_active" value="False"/>
+	    <param name="obstacle_manager_id" value="$(arg obstacle_manager_id)"/>
     </node>
 
-    <!--node name="sl_crazyflie_controller" pkg="sl_crazyflie_controller" type="target_msg_mux.py"  output="screen">
-    </node-->
-
-    <node name="crazyflie_demo_controller" pkg="crazyflie_demo" type="controller.py">
-    </node>
 
     <node name="segment_follower" pkg="sl_crazyflie_pathfollowing" type="SegmentFollower.py" output="screen">
     	<param name="pose_topic" value="$(arg cf_pose)"/>

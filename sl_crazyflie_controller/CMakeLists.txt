@@ -47,7 +47,6 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 generate_dynamic_reconfigure_options(
   cfg/pid_cfg.cfg
-  cfg/pid_position.cfg
 )
 ## Generate messages in the 'msg' folder
 # add_message_files(

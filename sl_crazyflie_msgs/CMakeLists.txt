@@ -50,6 +50,7 @@ add_message_files(
   FlightMode.msg
   TargetMsg.msg
   Velocity.msg
+  Obstacle.msg
   ControlMode.msg
 )
 

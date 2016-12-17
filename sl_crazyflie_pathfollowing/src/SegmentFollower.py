@@ -75,7 +75,7 @@ class SegmentFollower:
         pose_topic = rospy.get_param("~pose_topic")
         self.last_pose = None
         self.action_srv = actionlib.SimpleActionServer("follow_segment_action", FollowSegmentAction, execute_cb=self.follow_cb, auto_start=False)
-        self.control_command_pub = rospy.Publisher("path_following/external_cmd", TargetMsg, queue_size=1)
+        self.control_command_pub = rospy.Publisher("external_cmd", TargetMsg, queue_size=1)
         self.action_srv.start()
         self.pose_sub = rospy.Subscriber(pose_topic, PoseStamped, self.pose_callback)
         self.change_flight_mode = rospy.ServiceProxy('change_flightmode', ChangeFlightMode)

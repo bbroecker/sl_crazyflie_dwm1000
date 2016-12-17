@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
 
 <launch>
-  <arg name="uri" default="radio://0/60/250K" />
+  <arg name="cf1_uri" default="radio://0/10/1M" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="wand_topic" default="/Robot_2/pose" />
+  <arg name="cf1_pose" default="/Robot_1/pose" />
   <arg name="wand_frame_id" default="/Robot_2/base_link" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
@@ -14,22 +15,21 @@
       <param name="dev" value="$(arg joy_dev)" />
   </node>
 
-
    <node name="joy_distributor" pkg="sl_crazyflie_controller" type="joy_distributor.py" output="screen" >
       <rosparam param="cf_name_spaces">["/crazyflie1"]</rosparam>
   </node>
+   <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
+      <param name="OBJECT_1/pose_topic" value="/Robot_1/pose" />
+      <param name="OBJECT_3/pose_topic" value="/Robot_3/pose" />
+  </node>
    <group ns="$(arg cf1_prefix)">
-    <node name="follow_pose" pkg="sl_crazyflie_controller" type="pose_follower.py" output="screen" >
-      <param name="pose_topic" value="$(arg wand_topic)" />
-      <param name="pose_frame_id" value="$(arg wand_frame_id)" />
-      <param name="z_offset" value="0.5" />
-    </node>
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
-        <arg name="wand_pose" value="/Robot_2/pose" />
-        <arg name="wand_frame_id" value="/Robot_2/base_link" />
-        <arg name="cf_uri" value="radio://0/10/1M" />
-        <arg name="cf_pose" value="/Robot_1/pose" />
+        <arg name="cf_uri" value="$(arg cf1_uri)" />
+        <arg name="obstacle_manager_id" value="1" />
+        <arg name="cf_pose" value="$(arg cf1_pose)" />
         <arg name="prefix" value="$(arg cf1_prefix)" />
+        <arg name="wand_topic" default="$(arg wand_topic)" />
+        <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
     </include>
     </group>
 
