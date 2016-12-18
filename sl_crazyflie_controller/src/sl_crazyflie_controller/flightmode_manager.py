@@ -73,7 +73,6 @@ class FlightModeManager:
         elif self.current_flightmode.id is FlightMode.LAND:
             if self.last_pose_msg.pose.position.z <= LAND_HEIGHT:
                 new_mode_id = FlightMode.MANUAL
-                print "<= LAND_HEIGHT"
             else:
                 change_mode = False
         elif self.current_flightmode.id is FlightMode.TAKEOFF:
@@ -106,8 +105,8 @@ class FlightModeManager:
                 self.avg_z_vel_list.pop(0)
             self.avg_z_vel = sum(self.avg_z_vel_list) / len(self.avg_z_vel_list)
             #check for mocap jumps
-            if euler_distance_pose(self.prev_pose_msg, self.last_pose_msg) > 0.1:
-                print "arg!!!! mocap {0}".format(euler_distance_pose(self.prev_pose_msg, self.last_pose_msg))
+            # if euler_distance_pose(self.prev_pose_msg, self.last_pose_msg) > 0.1:
+            #     print "arg!!!! mocap {0}".format(euler_distance_pose(self.prev_pose_msg, self.last_pose_msg))
 
 
 
@@ -119,7 +118,6 @@ class FlightModeManager:
             changed = False
         else:
             self.prev_flightmode.id = self.current_flightmode.id
-            print "new_mode %d"%mode_id
             self.current_flightmode.id = mode_id
 
         return changed

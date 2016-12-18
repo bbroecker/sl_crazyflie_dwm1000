@@ -14,6 +14,7 @@ WANDING = 0
 DEADMAN_SWITCH = 10
 DISARM = 14
 THROW = 12
+MANUAL = 15
 
 
 def map_value(value, in_min, in_max, out_min, out_max):
@@ -39,7 +40,7 @@ class Teleop:
         self.pid_active_button = rospy.get_param("~pid_activate_axis", 11)
 
         self.prev_pressed = {'takeoff': False, 'up': False, 'down': False, 'left': False, 'right': False,
-                             'forward': False, 'backward': False, 'wanding': False, 'disarm': False, 'throw': False}
+                             'forward': False, 'backward': False, 'wanding': False, 'disarm': False, 'throw': False, 'manual' : False}
 
         self.current_flight_mode_id = None
         self.controller_active = False
@@ -141,6 +142,12 @@ class Teleop:
             if not self.pid_tuning_active:
                 ch_flm.mode.id = self.mode_id_backup
 
+        if self.is_button_released('throw', joy_msgs.buttons[THROW]):
+            if self.current_flight_mode_id is not FlightMode.THROW_LAUNCH:
+                ch_flm.mode.id = FlightMode.THROW_LAUNCH
+
+        if self.is_button_released('manual', joy_msgs.buttons[MANUAL]):
+            ch_flm.mode.id = FlightMode.MANUAL
 
         if self.is_button_released('disarm', joy_msgs.buttons[DISARM]):
             if self.current_flight_mode_id is FlightMode.DISARM:
@@ -148,10 +155,6 @@ class Teleop:
             else:
                 # ch_flm.mode.id = FlightMode.WANDING
                 ch_flm.mode.id = FlightMode.DISARM
-
-        if self.is_button_released('throw', joy_msgs.buttons[THROW]):
-            if self.current_flight_mode_id is not FlightMode.THROW_LAUNCH:
-                ch_flm.mode.id = FlightMode.THROW_LAUNCH
 
         if ch_flm.mode.id != -1:
             if ch_flm.mode.id in INTERNAL_TARGET_MODES and self.is_wanding:

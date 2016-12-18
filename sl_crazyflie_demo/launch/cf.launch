@@ -8,11 +8,11 @@
 <arg name="external_cmd_topic" default="external_cmd"/>
 
     <!--<param name="crazyflie/pid_rate/yaw_kp" value="200"/>-->
-    <include file="$(find crazyflie_driver)/launch/crazyflie_add.launch">
-      <arg name="uri" value="$(arg cf_uri)" />
-      <arg name="tf_prefix" value="$(arg prefix)" />
-      <arg name="enable_logging" value="True" />
-    </include>
+     <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
+      <param name="uri" value="$(arg cf_uri)" />
+      <param name="tf_prefix" value="$(arg prefix)" />
+    </node>
+
 
     <!-- Note that axis IDs are those from the joystick message plus one, to be able to invert axes by specifiying either positive or negative axis numbers.-->
     <!-- Axis 2 from joy message thus has to be set as '3' or '-3'(inverted mode) below-->

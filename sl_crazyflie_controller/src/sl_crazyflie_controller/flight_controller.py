@@ -126,7 +126,6 @@ class FlightController:
         return self.tune_pid and self.external_control_active()
 
     def callback_change_flightmode(self, mode):
-        print "callback_change_flightmode %s" % mode.mode.id
         assert isinstance(mode, ChangeFlightModeRequest)
         mode_changed = self.mode_manager.change_flightmode(mode.mode.id)
         if mode_changed:

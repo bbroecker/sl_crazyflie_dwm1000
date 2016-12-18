@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="cf1_uri" default="radio://0/10/1M" />
-  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_dev" default="/dev/input/js1" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="wand_topic" default="/Robot_2/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />

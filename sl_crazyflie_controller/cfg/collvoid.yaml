@@ -1,5 +1,5 @@
 collvoid:
-  simple_collvoid_active: False
+  simple_collvoid_active: True
   simple_collvoid_priority: 2
   geofencing_active: False
   geofencing_priority: 1
