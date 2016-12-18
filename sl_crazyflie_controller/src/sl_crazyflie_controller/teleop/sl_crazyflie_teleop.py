@@ -6,7 +6,7 @@ from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest
 from std_srvs.srv import Empty
 import math
 from sl_crazyflie_msgs.msg import Velocity, FlightMode, TargetMsg, ControlMode
-from sl_crazyflie_controller.flightmode_manager import POS_CTRL_MODES
+from sl_crazyflie_controller.flightmode_manager import POS_CTRL_MODES, INTERNAL_TARGET_MODES
 
 TAKEOFF = 3
 STEP_SIZE = 0.15
@@ -110,19 +110,17 @@ class Teleop:
 
     def check_button_events(self, joy_msgs):
         ch_flm = ChangeFlightModeRequest()
+        ch_flm.mode.id = -1
         if self.is_button_released('takeoff', joy_msgs.buttons[TAKEOFF]):
             if self.current_flight_mode_id not in POS_CTRL_MODES:
                 ch_flm.mode.id = FlightMode.TAKEOFF
             else:
                 ch_flm.mode.id = FlightMode.LAND
-            self.current_flight_mode_id = ch_flm.mode.id
-            self.change_flight_mode(ch_flm)
+
 
         if self.is_button_released('wanding', joy_msgs.buttons[WANDING]):
             if self.is_wanding:
                 ch_flm.mode.id = FlightMode.POS_HOLD
-                self.current_flight_mode_id = ch_flm.mode.id
-                self.change_flight_mode(ch_flm)
                 self.stop_wanding.call()
                 self.is_wanding = False
             else:
@@ -137,14 +135,12 @@ class Teleop:
                 if not self.pid_tuning_active:
                     self.mode_id_backup = self.current_flight_mode_id
                     ch_flm.mode.id = FlightMode.EXTERNAL_CONTROL
-                    self.current_flight_mode_id = ch_flm.mode.id
-                    self.change_flight_mode(ch_flm)
+
         elif self.controller_active:
             self.controller_active = False
             if not self.pid_tuning_active:
                 ch_flm.mode.id = self.mode_id_backup
-                self.current_flight_mode_id = ch_flm.mode.id
-                self.change_flight_mode(ch_flm)
+
 
         if self.is_button_released('disarm', joy_msgs.buttons[DISARM]):
             if self.current_flight_mode_id is FlightMode.DISARM:
@@ -152,14 +148,18 @@ class Teleop:
             else:
                 # ch_flm.mode.id = FlightMode.WANDING
                 ch_flm.mode.id = FlightMode.DISARM
-            self.change_flight_mode(ch_flm)
-            self.current_flight_mode_id = ch_flm.mode.id
 
         if self.is_button_released('throw', joy_msgs.buttons[THROW]):
             if self.current_flight_mode_id is not FlightMode.THROW_LAUNCH:
                 ch_flm.mode.id = FlightMode.THROW_LAUNCH
-                self.change_flight_mode(ch_flm)
-                self.current_flight_mode_id = ch_flm.mode.id
+
+        if ch_flm.mode.id != -1:
+            if ch_flm.mode.id in INTERNAL_TARGET_MODES and self.is_wanding:
+                self.is_wanding = False
+                self.stop_wanding.call()
+            self.change_flight_mode(ch_flm)
+            self.current_flight_mode_id = ch_flm.mode.id
+
 
     def get_axis(self, joy_msg, axis):
         if axis == 0 or axis > len(joy_msg.axes):

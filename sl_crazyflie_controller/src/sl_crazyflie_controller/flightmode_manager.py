@@ -27,7 +27,7 @@ FLIGHT_MODE_UPDATERATE = 20  # Publish current flight mode in 2 Hz
 # CRAZY_FLIE_FRAME_ID = 'Robot_1/base_link'
 WORLD_FRAME_ID = '/world'
 POS_CTRL_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.EXTERNAL_CONTROL]
-INTERNAL_TARGET_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD]
+INTERNAL_TARGET_MODES = [FlightMode.LAND, FlightMode.TAKEOFF, FlightMode.POS_HOLD, FlightMode.THROW_LAUNCH, FlightMode.THROW_LAUNCH_STABILIZE]
 
 
 def euler_distance_pose(pose1, pose2):

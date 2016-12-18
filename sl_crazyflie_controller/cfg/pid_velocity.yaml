@@ -4,13 +4,13 @@ pid_velocity:
     ki: 5.4
     kd: 1.9
     d_filter_count: 6
-    max_output: 35
+    max_output: 30
   y:
     kp: 36.6
     ki: 5.4
     kd: 1.9
     d_filter_count: 6
-    max_output: 35
+    max_output: 30
   z:
     kp: 1.16
     ki: 0.2
