@@ -11,6 +11,13 @@
      <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
       <param name="uri" value="$(arg cf_uri)" />
       <param name="tf_prefix" value="$(arg prefix)" />
+      <rosparam> 
+        genericLogTopics: ["log_ranges"]
+        genericLogTopicFrequencies: [100]
+        genericLogTopic_log_ranges_Variables: ["ranging.distance1", "ranging.distance2", "ranging.distance3", "ranging.distance4", "ranging.distance5", "ranging.distance6", "ranging.state"]
+      </rosparam>
+
+
     </node>
 
 

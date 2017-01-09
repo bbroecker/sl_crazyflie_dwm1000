@@ -1,7 +1,9 @@
 collvoid:
+  dwm1000_active: True
+  dwm1000_priority: 3
   simple_collvoid_active: True
   simple_collvoid_priority: 2
-  geofencing_active: False
+  geofencing_active: True
   geofencing_priority: 1
   geofencing:
     min_x: -1.65
