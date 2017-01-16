@@ -1,0 +1,15 @@
+random_walk:
+  border:
+    min_x: -1.45
+    min_y: -1.5
+    max_x: 0.8
+    max_y: 0.6
+  center:
+    min_x: -1.2
+    min_y: -1.4
+    max_x: 0.6
+    max_y: 0.4
+  max_speed: 0.4
+  buffer_len: 0.3
+  recover_timer: 4.0
+

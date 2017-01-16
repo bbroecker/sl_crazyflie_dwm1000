@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="cf1_uri" default="radio://0/80/2M" />
-  <arg name="joy_dev" default="/dev/input/js1" />
+  <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="wand_topic" default="/Robot_2/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />
@@ -23,6 +23,13 @@
       <param name="OBJECT_3/pose_topic" value="/Robot_3/pose" />
   </node>
    <group ns="$(arg cf1_prefix)">
+
+    <node name="random_walker" pkg="sl_crazyflie_controller" type="random_walk.py" output="screen" >
+        <rosparam command="load" file="$(find sl_crazyflie_controller)/cfg/random_walk.yaml"/>
+        <param name="cf_pose_topic" value="$(arg cf1_pose)" />
+    </node>
+    <node name="random_walk_teleop" pkg="sl_crazyflie_controller" type="random_walk_teleop.py" output="screen" >
+    </node>
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
         <arg name="cf_uri" value="$(arg cf1_uri)" />
         <arg name="obstacle_manager_id" value="1" />

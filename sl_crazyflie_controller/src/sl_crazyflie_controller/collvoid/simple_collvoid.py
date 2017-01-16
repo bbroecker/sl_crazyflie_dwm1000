@@ -43,11 +43,12 @@ class SimpleCollvoid(CollvoidInterface):
     def __init__(self, priority):
         CollvoidInterface.__init__(self, priority)
         self.my_pose_id = rospy.get_param("~obstacle_manager_id")
+        rospy.loginfo("my pose id %d" % self.my_pose_id)
         self.min_xy_dist = rospy.get_param("~collvoid/simple_collvoid/min_xy_dist")
         self.max_xy_dist = rospy.get_param("~collvoid/simple_collvoid/max_xy_dist")
         self.max_xy_avoid_vel = rospy.get_param("~collvoid/simple_collvoid/max_xy_avoid_vel")
         self.max_xy_goal_vel = rospy.get_param("~collvoid/simple_collvoid/max_xy_goal_vel")
-        self.p_factor = rospy.get_param("~collvoid/simple_collvoid/error_factor", 1.7)
+        self.p_factor = rospy.get_param("~collvoid/simple_collvoid/error_factor")
         self.sub = rospy.Subscriber("/obstacle_poses", Obstacle, self.obs_pose_callback)
         self.current_obstacles = []
         self.last_pose_dict = {}

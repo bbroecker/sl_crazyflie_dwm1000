@@ -25,12 +25,12 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
 class GeoFenchingNode(CollvoidInterface):
     def __init__(self, priority):
         CollvoidInterface.__init__(self, priority)
-        self.min_x = rospy.get_param("~/collvoid/geofencing/min_x", -1.2)
-        self.min_y = rospy.get_param("~/collvoid/geofencing/min_y", -1.2)
-        self.max_x = rospy.get_param("~/collvoid/geofencing/max_x", 0.1)
-        self.max_y = rospy.get_param("~/collvoid/geofencing/max_y", 0.3)
-        self.recover_speed = rospy.get_param("~/collvoid/geofencing/recover_speed", 0.3)
-        self.buffer_len = rospy.get_param("~/collvoid/geofencing/buffer_len", 0.05)
+        self.min_x = rospy.get_param("~collvoid/geofencing/min_x")
+        self.min_y = rospy.get_param("~collvoid/geofencing/min_y")
+        self.max_x = rospy.get_param("~collvoid/geofencing/max_x")
+        self.max_y = rospy.get_param("~collvoid/geofencing/max_y")
+        self.recover_speed = rospy.get_param("~collvoid/geofencing/recover_speed")
+        self.buffer_len = rospy.get_param("~collvoid/geofencing/buffer_len")
         self.avoid = False
 
     def update_cf_pose(self, pose):
@@ -41,6 +41,9 @@ class GeoFenchingNode(CollvoidInterface):
             self.avoid = False
 
     def is_active(self):
+        if self.avoid:
+            print "geofencing!!"
+            print self.current_cf_pose
         return self.avoid
 
     def calculate_velocity(self, current_target_velocity):

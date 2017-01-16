@@ -129,7 +129,6 @@ class Teleop:
                 self.start_wanding.call()
                 self.is_wanding = True
 
-
         if joy_msgs.buttons[DEADMAN_SWITCH]:
             if not self.controller_active:
                 self.controller_active = True
