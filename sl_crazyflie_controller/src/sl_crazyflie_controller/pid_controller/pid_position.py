@@ -3,7 +3,7 @@ import numpy as np
 import rospy
 from dynamic_reconfigure.server import Server
 from sl_crazyflie_controller.cfg import pid_cfgConfig
-from sl_crazyflie_controller.cfg import pid_positionConfig
+#from sl_crazyflie_controller.cfg import pid_positionConfig
 from sl_crazyflie_msgs.msg import Velocity
 
 from pid import PidController, yaw_of_pose, rotate_vector_by_angle, limit_angle

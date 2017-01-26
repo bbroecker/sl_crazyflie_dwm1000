@@ -11,15 +11,18 @@ DECAY_FACTOR = 3
 
 class PoseManager:
     def __init__(self):
-        max_pose_topics = rospy.get_param("~max_pose_topics", 100)
         rate = rospy.get_param("~obstacle_publish_rate", 20)
         self.pose_subs = {}
         self.obstacle_publisher = rospy.Publisher("/obstacle_poses", Obstacle, queue_size=10)
         self.obstacles = {}
-        for i in range(max_pose_topics):
-            topic_str = POSE_TOPIC_PARAM.replace("ID", str(i))
-            if rospy.has_param(topic_str):
-                self.pose_subs[i] = rospy.Subscriber(rospy.get_param(topic_str), PoseStamped, self.callback_pose, i)
+        topics = rospy.get_param("~pose_topics")
+        ids = rospy.get_param("~ids")
+        if len(ids) is not len(topics):
+            rospy.logwarn("parameter count is not correct")
+            return
+        for idx, topic_str in enumerate(topics):
+            print idx, topic_str
+            self.pose_subs[idx] = rospy.Subscriber(topic_str, PoseStamped, self.callback_pose, ids[idx])
         r = rospy.Rate(rate)
         while not rospy.is_shutdown():
             for key, value in self.obstacles.iteritems():

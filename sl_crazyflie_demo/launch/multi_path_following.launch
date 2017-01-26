@@ -30,8 +30,8 @@
       <rosparam param="cf_name_spaces">["/crazyflie1", "/crazyflie2"]</rosparam>
     </node>
     <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
-      <param name="OBJECT_1/pose_topic" value="/Robot_1/pose" />
-      <param name="OBJECT_3/pose_topic" value="/Robot_3/pose" />
+      <rosparam param="ids">[1, 3]</rosparam>
+      <rosparam param="ids">["/Robot_1/pose", /Robot_3/pose]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
