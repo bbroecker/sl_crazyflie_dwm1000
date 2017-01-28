@@ -2,7 +2,7 @@
 
 <launch>
   <arg name="cf1_uri" default="radio://0/80/2M" />
-  <arg name="cf2_uri" default="radio://0/10/1M" />
+  <arg name="cf2_uri" default="radio://0/10/2M" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="cf2_prefix" default="crazyflie2" />
@@ -23,7 +23,7 @@
   </node>
    <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
       <rosparam param="ids">[1, 3]</rosparam>
-      <rosparam param="ids">["/Robot_1/pose", /Robot_3/pose]</rosparam>
+      <rosparam param="pose_topics">["/Robot_1/pose", "/Robot_3/pose"]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
 
