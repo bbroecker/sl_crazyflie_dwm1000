@@ -5,16 +5,17 @@ import xml.etree.ElementTree as ET
 
 class BTWorkspace:
 
-    def __init__(self, numIn, numOut, numPars):
+    def __init__(self, a1, a2 = None, a3 = None):
         self.m_numIn = None
         self.m_numOut = None
         self.m_numPar = None
         self.m_workspaceData = None
-        self.init_workspace(numIn, numOut, numPars)
-
-    def __init__(self, other):
-        assert isinstance(other, BTWorkspace)
-        self.init_workspace(other.m_numIn, other.m_numOut, other.m_numPar)
+        if isinstance(a1, BTWorkspace):
+            other = a1
+            self.init_workspace(other.m_numIn, other.m_numOut, other.m_numPar)
+        else:
+            self.init_workspace(a1, a2, a3)
+            # def init_workspace(self, numIn, numOut, numPars):
 
     def init_workspace(self,  numIn, numOut, numPars):
         self.m_numIn = numIn
@@ -43,7 +44,7 @@ class BTWorkspace:
             rospy.logerr("BTWorkspace::incPar: index out of range")
         self.m_workspaceData[self.m_numIn + pos] += val
 
-    def  get_par(self, pos):
+    def get_par(self, pos):
         if pos >= len(self.m_workspaceData):
             rospy.logerr("BTWorkspace::getPar: index out of range")
         return self.m_workspaceData[pos]

@@ -1,32 +1,33 @@
 #!/usr/bin/env python
 import copy
-from enum import Enum
+
 import xml.etree.ElementTree as ET
 
 import rospy
 
-class BTNodeState(Enum):
+
+class BTNodeState:
     Failure = 0
     Success = 1
     Running = 2
 
 
 class BTNode:
-    def __init__(self, node_type_name, is_composite):
-        self.m_node_type_name = node_type_name
-        self.m_children = []
-        self.m_is_composite = is_composite
-        self.m_tick_counter = 0
-        self.m_was_ticked = False
-
-
-    def __init__(self, other):
-        assert isinstance(other, BTNode)
-        self.m_node_type_name = other.m_node_type_name
-        self.m_children = copy.deepcopy(other.m_children)
-        self.m_is_composite = other.m_is_composite
-        self.m_tick_counter = 0
-        self.m_was_ticked = False
+    def __init__(self, node_type_name=None, is_composite=None):
+        if is_composite is not None:
+            self.m_node_type_name = node_type_name
+            self.m_children = []
+            self.m_is_composite = is_composite
+            self.m_tick_counter = 0
+            self.m_was_ticked = False
+        else:
+            other = node_type_name
+            assert isinstance(other, BTNode)
+            self.m_node_type_name = other.m_node_type_name
+            self.m_children = copy.deepcopy(other.m_children)
+            self.m_is_composite = other.m_is_composite
+            self.m_tick_counter = 0
+            self.m_was_ticked = False
 
     def get_type_name(self):
         return self.m_node_type_name
@@ -118,61 +119,3 @@ class BTNode:
         return len(self.m_children)
 
 
-
-    def get_child_from_node(self, node):
-        assert isinstance(node, ET.Element)
-        type_name = node.tag
-
-        returnNode = None
-        if type_name is "BTSelect":
-            returnNode = BTSelect()
-
-        elif type_name is "BTSequence":
-            returnNode = BTSequence()
-
-        elif type_name is "BTWhile":
-            returnNode = BTWhile()
-
-        elif type_name is "BTConditionC":
-            returnNode = BTConditionC()
-
-        elif type_name is "BTConditionP":
-            returnNode = BTConditionP()
-
-        elif type_name is  "BTWhileConditionP":
-            returnNode = BTWhileConditionP()
-
-        elif type_name is "BTWhileConditionC":
-            returnNode = BTWhileConditionC()
-
-        elif type_name is "BTSetC":
-            returnNode = BTSetC()
-
-        elif type_name is "BTSetP":
-            returnNode = BTSetP()
-
-    # //    else if (strcmp(typeName, "BTDelay") == 0)
-    # //        returnNode = new BTDelay();
-    #
-    # //    else if (strcmp(typeName, "BTTurnAround") == 0)
-    # //        returnNode = new BTTurnAround();
-    #
-    # //    else if (strcmp(typeName, "BTStop") == 0)
-    # //        returnNode = new BTStop();
-    #
-    # //    else if (strcmp(typeName, "BTSetProportional") == 0)
-    # //        returnNode = new BTSetProportional();
-    #
-    # //    else if (strcmp(typeName, "BTPeakDetector") == 0)
-    # //        returnNode = new BTPeakDetector();
-
-        elif type_name is "BTProdP":
-            returnNode = BTProdP()
-
-        if returnNode is None:
-            return returnNode
-
-        if not returnNode.loadAttributes(node):
-            returnNode = None;
-
-        return returnNode
