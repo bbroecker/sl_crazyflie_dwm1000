@@ -12,7 +12,7 @@ class BTFactory:
     def get_child_from_node(node):
         assert isinstance(node, ET.Element)
         type_name = node.tag
-        print "type_name {0}".format(type_name)
+
 
         return_node = None
         if type_name == "BTSelect":
@@ -25,9 +25,7 @@ class BTFactory:
             return_node = bt_composites.BTWhile()
 
         elif type_name == "BTConditionC":
-            print "type_name {0}".format(type_name)
             return_node = bt_leaves.BTConditionC()
-            print "type_name {0}".format(return_node)
 
         elif type_name == "BTConditionP":
             return_node = bt_leaves.BTConditionP()

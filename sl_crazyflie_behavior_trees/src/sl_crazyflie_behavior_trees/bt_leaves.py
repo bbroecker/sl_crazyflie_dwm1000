@@ -47,7 +47,6 @@ class BTConditionC(BTNode):
 
     def load_attributes(self, node):
         cmp_type = node.attrib["compareType"]
-        print cmp_type
         if cmp_type == "moreThan":
             self.m_condition_type_more_than = True
         elif cmp_type == "lessThan":
@@ -269,7 +268,6 @@ class BTSetC(BTNode):
         node.attrib["value"] = self.m_value
 
     def load_attributes(self, node):
-        print "load_attributes"
         assert isinstance(node, ET.Element)
         cmp_type = "absolute"
         if "setType" in node.attrib:
