@@ -92,7 +92,6 @@ class BTNode:
         for child in self.m_children:
             child.reset_tick_marker()
 
-
     def save(self, node):
         this_node = ET.SubElement(node,self.m_nodeTypeName)
         self.saveAttributes(this_node)

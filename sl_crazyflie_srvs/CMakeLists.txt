@@ -56,6 +56,7 @@ find_package(catkin REQUIRED COMPONENTS
  add_service_files(
    FILES
    ChangeTargetPose.srv
+   StartGoalWalk.srv
    #StartWanding.srv
    ChangeFlightMode.srv
 #   Service2.srv

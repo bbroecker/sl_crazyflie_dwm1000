@@ -1,0 +1,7 @@
+goal_walk:
+  max_velocity: 0.5
+  max_angle_vel: 180.0
+  max_angle_increment: 180.0
+  goal_distance: 0.2
+  buffer_to_wall: 0.2
+
