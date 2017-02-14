@@ -1,5 +1,10 @@
 #!/usr/bin/env python
+import importlib
+import os
+import pkgutil
+
 import rospy
+import sys
 
 from sl_crazyflie_controller.collvoid.collvoid_interface import CollvoidInterface
 from sl_crazyflie_controller.collvoid.geofencing_node import GeoFenchingNode
@@ -10,29 +15,50 @@ from sl_crazyflie_controller.collvoid.dwm1000_collvoid import DW1000Collvoid
 
 class CollvoidController:
     def __init__(self):
-        simple_collvoid_active = rospy.get_param("~collvoid/simple_collvoid_active", False)
-        simple_collvoid_priority = rospy.get_param("~collvoid/simple_collvoid_priority", 2)
-        geofencing_active = rospy.get_param("~collvoid/geofencing_active", False)
-        geofencing_priority = rospy.get_param("~collvoid/geofencing_priority", 1)
-        dwm1000_active = rospy.get_param("~collvoid/dwm1000_active", False)
-        dwm1000_priority = rospy.get_param("~collvoid/dwm1000_priority", 3)
+        controllers_names = rospy.get_param("~collvoid/controllers")
+        self.controllers = []
 
+        for c in controllers_names:
+            self.controllers.append(get_child_class(c, CollvoidInterface)())
 
         self.avoid_behaviours = []
-        if simple_collvoid_active:
-            self.avoid_behaviours.append(SimpleCollvoid(simple_collvoid_priority))
-        if geofencing_active:
-            self.avoid_behaviours.append(GeoFenchingNode(geofencing_priority))
-        if dwm1000_active:
-            self.avoid_behaviours.append(DW1000Collvoid(dwm1000_priority))
-        self.avoid_behaviours.sort(key=lambda x: x.priority, reverse=False)
+
 
     def calc_collvoid_velocity(self, current_pose, current_velocity):
         new_vel = current_velocity
-        for behavoiour in self.avoid_behaviours:
-            assert isinstance(behavoiour, CollvoidInterface)
-            behavoiour.update_cf_pose(current_pose)
-            if behavoiour.is_active():
-                new_vel = behavoiour.calculate_velocity(current_velocity)
+        for behaviour in self.controllers:
+            assert isinstance(behaviour, CollvoidInterface)
+            behaviour.update_cf_pose(current_pose)
+            if behaviour.is_active():
+                new_vel = behaviour.calculate_velocity(current_velocity)
                 break
         return new_vel
+
+def find_possible_child_classes(dirname):
+    names = []
+    pkg_dir = os.path.dirname(dirname)
+    for (module_loader, name, ispkg) in pkgutil.iter_modules([pkg_dir]):
+        names.append(name)
+    return names
+
+
+def all_subclasses(cls):
+    """
+    Recursively search for subclasses
+    """
+    return cls.__subclasses__() + [g for s in cls.__subclasses__()
+                                   for g in all_subclasses(s)]
+
+
+def get_child_class(module_name, class_type):
+    module_path = sys.modules[class_type.__module__].__file__
+    possible_child_classes = find_possible_child_classes(module_path)
+    if module_name not in possible_child_classes:
+        raise ImportError("Cannot import %s\n available:\n%s" % (module_name, str(possible_child_classes)))
+    parent_package = '.'.join(class_type.__module__.split('.')[:-1])
+    importlib.import_module('.' + module_name, parent_package)
+    for cls in all_subclasses(class_type):
+        if module_name.lower().replace('_', '') == cls.__name__.lower():
+            return cls
+    raise ImportError("Cannot import %s\n available:\n%s, did you name your class correctly?"
+                      % (module_name, str(possible_child_classes)))

@@ -23,8 +23,8 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
     return x, y
 
 class GeoFenchingNode(CollvoidInterface):
-    def __init__(self, priority):
-        CollvoidInterface.__init__(self, priority)
+    def __init__(self):
+        CollvoidInterface.__init__(self)
         self.min_x = rospy.get_param("~collvoid/geofencing/min_x")
         self.min_y = rospy.get_param("~collvoid/geofencing/min_y")
         self.max_x = rospy.get_param("~collvoid/geofencing/max_x")

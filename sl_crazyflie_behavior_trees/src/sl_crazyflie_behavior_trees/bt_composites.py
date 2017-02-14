@@ -5,6 +5,9 @@ import xml.etree.ElementTree as ET
 
 import math
 
+import rospy
+from std_msgs.msg import Float32
+
 from bt_node import BTNode, BTNodeState
 import bt_factory
 
@@ -91,7 +94,7 @@ class BTSequence(BTNode):
         return True
 
 class BTTarget(BTNode):
-    def __init__(self, state_array, dt):
+    def __init__(self, state_array, dt, id = 1):
         if isinstance(state_array, BTTarget):
             other = state_array
             BTNode.__init__(self, other)
@@ -103,6 +106,7 @@ class BTTarget(BTNode):
         self.prev_heading = self.state_array[1]
         self.prev_error = None
         self.d_buffer = collections.deque(maxlen=3)
+
 
     def clone(self):
         return copy.deepcopy(self)
@@ -119,10 +123,12 @@ class BTTarget(BTNode):
         current_heading = self.state_array[1]
         target = self.state_array[2]
 
-        angle_speed = ((current_heading - self.prev_heading)/math.pi)*180 / self.dt
+        angle_speed = (current_heading - self.prev_heading) / self.dt
+        if angle_speed > math.pi:
+            angle_speed = math.pi
+        if angle_speed < -math.pi:
+            angle_speed = -math.pi
 
-
-        # print "angle speed: {0}/s".format(angle_speed)
 
 
         k1 = 5
@@ -131,9 +137,8 @@ class BTTarget(BTNode):
         # print "target x {0} y {1}".format(target.x, target.y)
         pos_to_target = GVector(current_pos, target)
 
-        error_angle = current_heading - pos_to_target.angle();
-        if self.prev_error is None:
-            self.prev_error = error_angle
+        error_angle = current_heading - pos_to_target.angle()
+
         # print "current_heading {0} targetAngle {1}".format(current_heading, error_angle)
 
         while error_angle > math.pi:
@@ -142,20 +147,97 @@ class BTTarget(BTNode):
         while error_angle < -math.pi:
             error_angle += 2 * math.pi
 
-
-        Vcmd = (1 - (abs(error_angle) / math.pi)) * 1.1;
+        # Vcmd = (posToTarget.norm()) * (1 - (fabs(targetAngle) / M_PI));
+        Vcmd = (pos_to_target.norm() * 1.1) * (1 - (abs(error_angle) / math.pi)) * 1.0;
         if Vcmd > 1:
             Vcmd = 1
         error_angle *= -1
-        e = (error_angle) * 0.8
-        d = (error_angle - self.prev_error)/ self.dt * 0.00
+        target_angle_speed = error_angle * 0.8
+
+        omega = (target_angle_speed / math.pi)
+        # omega = error_angle/math.pi * 0.07
+        omega = 1 if omega > 1.0 else omega
+        omega = -1 if omega < -1.0 else omega
+        # print "omega {0}".format(omega)
+
+        workspace.set_par(0, Vcmd)
+        workspace.set_par(1, omega)
+        workspace.set_par(2, 0)
+        self.prev_heading = current_heading
+        # self.prev_error = speed_error
+
+        return BTNodeState.Success
+
+
+class BTTargetSimulator(BTNode):
+    def __init__(self, state_array, dt, id = 1):
+        if isinstance(state_array, BTTarget):
+            other = state_array
+            BTNode.__init__(self, other)
+            self.state_array = other.state_array
+        else:
+            BTNode.__init__(self, "BTTarget", False)
+            self.state_array = state_array
+        self.dt = dt
+        self.prev_heading = self.state_array[1]
+        self.prev_error = None
+        self.d_buffer = collections.deque(maxlen=4)
+        self.i_sum = collections.deque(maxlen=20)
+
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def save_attributes(self, node):
+        pass
+
+    def load_attributes(self, node):
+        return False
+
+    def tick_fcn(self, workspace):
+        assert isinstance(workspace, BTWorkspace)
+        current_pos = self.state_array[0]
+        current_heading = self.state_array[1]
+        target = self.state_array[2]
+
+
+
+        k1 = 5
+        k2 = 10
+        # print "pos x {0} y {1}".format(current_pos.x, current_pos.y)
+        # print "target x {0} y {1}".format(target.x, target.y)
+        pos_to_target = GVector(current_pos, target)
+
+        error_angle = pos_to_target.angle() - current_heading
+
+        # print "current_heading {0} targetAngle {1}".format(current_heading, error_angle)
+
+        while error_angle > math.pi:
+            error_angle -= 2 * math.pi
+
+        while error_angle < -math.pi:
+            error_angle += 2 * math.pi
+
+        v = 1 if (pos_to_target.norm()*1.2 > 1) else pos_to_target.norm() * 1.2
+        # Vcmd = (posToTarget.norm()) * (1 - (fabs(targetAngle) / M_PI));
+        # Vcmd = (1 - (abs(error_angle) / math.pi))
+        Vcmd = (v) - (abs(error_angle) / math.pi)
+        if Vcmd > 1:
+            Vcmd = 1
+        if Vcmd <= 0.25:
+            Vcmd = 0.25
+
+        if self.prev_error is None:
+            self.prev_error = error_angle
+
+        self.i_sum.append(error_angle)
+        d = (error_angle - self.prev_error)/self.dt
+        # print "d1 {0} d2 {1}".format(d, d2)
+
         self.d_buffer.append(d)
-        #omega = -(Vcmd * 0.5 / pos_to_target.norm()) * (k2 * error_angle + 1 + k1 * math.sin(error_angle))
-        omega = e + sum(self.d_buffer) / len(self.d_buffer)
 
-        # print "e {0} d {1}".format(e, d)
+        target_angle_speed = error_angle * 0.45 + sum(self.i_sum) * 0.0025 + sum(self.d_buffer) / len(self.d_buffer) * 0.1
 
-        omega = (omega / math.pi)
+        omega = target_angle_speed
         # omega = error_angle/math.pi * 0.07
         omega = 1 if omega > 1.0 else omega
         omega = -1 if omega < -1.0 else omega

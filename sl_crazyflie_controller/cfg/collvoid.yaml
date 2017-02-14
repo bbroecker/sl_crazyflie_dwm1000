@@ -1,10 +1,8 @@
 collvoid:
-  dwm1000_active: True
-  dwm1000_priority: 3
-  simple_collvoid_active: True
-  simple_collvoid_priority: 2
-  geofencing_active: True
-  geofencing_priority: 1
+  controllers:
+    - geofencing_node
+    - simple_collvoid
+    - dwm1000_collvoid
   geofencing:
     min_x: -1.60
     min_y: -2.1

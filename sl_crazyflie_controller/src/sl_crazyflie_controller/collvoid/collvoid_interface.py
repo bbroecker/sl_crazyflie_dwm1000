@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 class CollvoidInterface:
-    def __init__(self, priority):
-        self.priority = priority
+    def __init__(self):
         self.current_cf_pose = None
 
     def update_cf_pose(self, pose):

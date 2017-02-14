@@ -40,8 +40,8 @@ def rotate_vector_by_angle(vector_x, vector_y, angle):
 
 
 class SimpleCollvoid(CollvoidInterface):
-    def __init__(self, priority):
-        CollvoidInterface.__init__(self, priority)
+    def __init__(self):
+        CollvoidInterface.__init__(self)
         self.my_pose_id = rospy.get_param("~obstacle_manager_id")
         rospy.loginfo("my pose id %d" % self.my_pose_id)
         self.min_xy_dist = rospy.get_param("~collvoid/simple_collvoid/min_xy_dist")

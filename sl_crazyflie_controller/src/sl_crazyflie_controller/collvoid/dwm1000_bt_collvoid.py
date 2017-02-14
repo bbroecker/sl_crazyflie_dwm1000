@@ -5,6 +5,7 @@ import rospy
 from crazyflie_driver.msg import GenericLogData
 from geometry_msgs.msg import PoseStamped
 from sl_crazyflie_msgs.msg import TargetMsg, Velocity, Obstacle
+from std_msgs.msg import Bool
 from std_srvs.srv import Empty, EmptyResponse
 from tf import transformations
 
@@ -13,11 +14,13 @@ from collvoid_interface import CollvoidInterface
 ACTIVATION_DISTANCE = 0.9
 
 
-class DWM1000Collvoid(CollvoidInterface):
+class DWM1000BtCollvoid(CollvoidInterface):
     def __init__(self):
         CollvoidInterface.__init__(self)
+        self.genome_file = rospy.get_param("~collvoid/dwm1000_bt_collvoid/Genome_file")
         rospy.Subscriber("log_ranges", GenericLogData, self.range_callback)
         start_srvs = rospy.Service("toggle_dwm_avoid", Empty, self.toggle_enable_callback)
+        self.is_acive_publisher = rospy.Publisher('dwm_coll_void_active', Bool, queue_size=1)
         self.dwm_distance = 0
         self.range_active = False
         self.enable = False
@@ -25,7 +28,6 @@ class DWM1000Collvoid(CollvoidInterface):
         self.reference_vel = Velocity()
         self.ae = 1.0
         self.last_update = rospy.Time.now()
-
 
 
     def range_callback(self, data):
@@ -107,8 +109,7 @@ class DWM1000Collvoid(CollvoidInterface):
     # tells the main controller if this bahaviour is active
     def is_active(self):
         active = (self.enable and self.range_active)
-        if active:
-            print "DW1000Collvoid active"
+        self.is_acive_publisher.publish(active)
         return active
 
 
