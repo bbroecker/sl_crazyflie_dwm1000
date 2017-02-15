@@ -79,13 +79,13 @@ class BTNode:
     def tick(self, workspace):
         self.m_was_ticked = True
         self.m_tick_counter += 1
-        return self.tick_fcn(workspace);
+        return self.tick_fcn(workspace)
 
     def get_tick_count(self):
         return self.m_tick_counter
 
     def reset_tick_count(self):
-        self.m_tick_counter = 0;
+        self.m_tick_counter = 0
 
     def reset_tick_marker(self):
         self.m_was_ticked = False

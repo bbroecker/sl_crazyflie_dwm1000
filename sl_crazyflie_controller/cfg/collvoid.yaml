@@ -16,4 +16,10 @@ collvoid:
     max_xy_avoid_vel: 0.4
     max_xy_goal_vel: 0.3
     error_factor: 1.7
-
+  dwm1000_bt_collvoid:
+    Genome_file: "test.xml"
+    max_angle_vel:
+    max_angle_increment:
+    max_vel:
+    timeout:
+    publish_rate:

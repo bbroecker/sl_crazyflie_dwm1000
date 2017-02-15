@@ -73,14 +73,15 @@ class BehaviorTree:
         assert isinstance(self.m_workspace, BTWorkspace)
         # print "1. workspace {0}".format(self.m_workspace.m_workspaceData)
 
-
         self.m_root_node.reset_tick_marker()
-        self.m_root_node.tick(self.m_workspace)
+        result = self.m_root_node.tick(self.m_workspace)
         # print "2. workspace {0}".format(self.m_workspace.m_workspaceData)
 
         aiio_data.output = []
         for i in range(self.m_nOut):
             aiio_data.output.append(self.m_workspace.get_out(i))
+
+        return result
 
     def get_root(self):
         return self.m_root_node
