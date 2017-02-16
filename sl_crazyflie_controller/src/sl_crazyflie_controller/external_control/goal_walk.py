@@ -12,7 +12,7 @@ from std_msgs.msg import Int32
 from std_srvs.srv import Empty, EmptyResponse
 
 from sl_crazyflie_behavior_trees.BehaviorTree import AIIO, BehaviorTree
-from sl_crazyflie_behavior_trees.bt_composites import BTTarget
+from sl_crazyflie_behavior_trees.bt_composites import BTTarget, BTTargetSimulator
 from sl_crazyflie_behavior_trees.Geometry.point import Point
 from sl_crazyflie_controller.flight_controller import euler_distance_pose
 
@@ -62,7 +62,7 @@ class RandomGoalWalker:
         self.m_aiIO.input = [0.0]
         self.state_array = [Point(), 0.0, Point()]
         self.m_ai = BehaviorTree(1, 3 , 1)
-        def_dehav_root = BTTarget(self.state_array, 1.0 / RATE)
+        def_dehav_root = BTTargetSimulator(self.state_array, 1.0 / RATE)
         self.m_ai.m_root_node = def_dehav_root
         self.goal_count = 0
 

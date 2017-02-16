@@ -2,7 +2,8 @@ collvoid:
   controllers:
     - geofencing_node
     - simple_collvoid
-    - dwm1000_collvoid
+    - dwm1000_bt_collvoid
+#    - dwm1000_collvoid
   geofencing:
     min_x: -1.60
     min_y: -2.1
@@ -17,9 +18,9 @@ collvoid:
     max_xy_goal_vel: 0.3
     error_factor: 1.7
   dwm1000_bt_collvoid:
-    Genome_file: "test.xml"
-    max_angle_vel:
-    max_angle_increment:
-    max_vel:
-    timeout:
-    publish_rate:
+    Genome_file: "/home/broecker/collvoid_ea_results/manual_genomes/Genome_manual.xml"
+    max_angle_vel: 180.0
+    max_angle_increment: 180.0
+    max_vel: 0.5
+    timeout: 1.0
+    publish_rate: 2.0

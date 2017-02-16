@@ -66,15 +66,16 @@ class BehaviorTree:
         doc.write(file_name)
 
     def trigger(self, aiio_data):
+        result = False
         assert isinstance(aiio_data, AIIO)
         for i in range(self.m_nIn):
             self.m_workspace.set_in(i, aiio_data.input[i])
 
         assert isinstance(self.m_workspace, BTWorkspace)
         # print "1. workspace {0}".format(self.m_workspace.m_workspaceData)
-
-        self.m_root_node.reset_tick_marker()
-        result = self.m_root_node.tick(self.m_workspace)
+        if self.m_root_node is not None:
+            self.m_root_node.reset_tick_marker()
+            result = self.m_root_node.tick(self.m_workspace)
         # print "2. workspace {0}".format(self.m_workspace.m_workspaceData)
 
         aiio_data.output = []

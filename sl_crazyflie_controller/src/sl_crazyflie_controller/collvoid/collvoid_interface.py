@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-class CollvoidInterface:
+class CollvoidInterface(object):
     def __init__(self):
         self.current_cf_pose = None
 

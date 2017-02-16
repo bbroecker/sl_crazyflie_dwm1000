@@ -15,6 +15,8 @@ ACTIVATION_DISTANCE = 0.9
 
 class DWM1000Collvoid(CollvoidInterface):
     def __init__(self):
+        print "HELLO!!!!!!!! DWM1000Collvoid"
+
         CollvoidInterface.__init__(self)
         rospy.Subscriber("log_ranges", GenericLogData, self.range_callback)
         start_srvs = rospy.Service("toggle_dwm_avoid", Empty, self.toggle_enable_callback)

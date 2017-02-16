@@ -252,6 +252,75 @@ class BTTargetSimulator(BTNode):
         return BTNodeState.Success
 
 
+class BTTargetSimulator2(BTNode):
+    def __init__(self, state_array, dt, id = 1):
+        if isinstance(state_array, BTTarget):
+            other = state_array
+            BTNode.__init__(self, other)
+            self.state_array = other.state_array
+        else:
+            BTNode.__init__(self, "BTTarget", False)
+            self.state_array = state_array
+        self.dt = dt
+        self.prev_heading = self.state_array[1]
+        self.prev_error = None
+        self.d_buffer = collections.deque(maxlen=4)
+        self.i_sum = collections.deque(maxlen=20)
+
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def save_attributes(self, node):
+        pass
+
+    def load_attributes(self, node):
+        return False
+
+    def tick_fcn(self, workspace):
+        assert isinstance(workspace, BTWorkspace)
+        current_pos = self.state_array[0]
+        current_heading = self.state_array[1]
+        target = self.state_array[2]
+
+
+
+        k1 = 5
+        k2 = 10
+        # print "pos x {0} y {1}".format(current_pos.x, current_pos.y)
+        # print "target x {0} y {1}".format(target.x, target.y)
+        pos_to_target = GVector(current_pos, target)
+        # print "current heading {0}".format(current_heading)
+        error_angle = pos_to_target.angle() - current_heading
+
+        # print "current_heading {0} targetAngle {1}".format(current_heading, error_angle)
+
+        # while error_angle > math.pi:
+        #     error_angle -= 2 * math.pi
+        #
+        # while error_angle < -math.pi:
+        #     error_angle += 2 * math.pi
+
+        Vcmd = pos_to_target.norm() * 1.2
+        # Vcmd = (posToTarget.norm()) * (1 - (fabs(targetAngle) / M_PI));
+        # Vcmd = (1 - (abs(error_angle) / math.pi))
+        # Vcmd = (v) - (abs(error_angle) / math.pi)
+        if Vcmd > 1:
+            Vcmd = 1
+        if Vcmd < -1:
+            Vcmd = 1
+
+
+
+
+        workspace.set_par(0, Vcmd)
+        workspace.set_par(1, 0.00)
+        workspace.set_par(2, error_angle/math.pi)
+
+        return BTNodeState.Success
+
+
+
+
 class BTWhile(BTNode):
     def __init__(self, other=None):
         if other is None:
