@@ -11,12 +11,12 @@ from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest, Sta
 from std_msgs.msg import Int32
 from std_srvs.srv import Empty, EmptyResponse
 
-from sl_crazyflie_behavior_trees.BehaviorTree import AIIO, BehaviorTree
-from sl_crazyflie_behavior_trees.bt_composites import BTTarget, BTTargetSimulator
+from sl_crazyflie_behavior_trees.AI.BehaviourTree import AIIO, BehaviorTree
+from sl_crazyflie_behavior_trees.bt_composites import BTTarget, BTTargetHolonomic
 from sl_crazyflie_behavior_trees.Geometry.point import Point
 from sl_crazyflie_controller.flight_controller import euler_distance_pose
 
-RATE = 100.0
+RATE = 10.0
 SLOW_RATE = 10.0
 
 def yaw_of_pose(pose):
@@ -61,8 +61,8 @@ class RandomGoalWalker:
         self.m_psi_cmd = 0
         self.m_aiIO.input = [0.0]
         self.state_array = [Point(), 0.0, Point()]
-        self.m_ai = BehaviorTree(1, 3 , 1)
-        def_dehav_root = BTTargetSimulator(self.state_array, 1.0 / RATE)
+        self.m_ai = BehaviorTree(1, 3, 1)
+        def_dehav_root = BTTargetHolonomic(self.state_array, 1.0 / RATE)
         self.m_ai.m_root_node = def_dehav_root
         self.goal_count = 0
 
@@ -106,8 +106,8 @@ class RandomGoalWalker:
         self.state_array[0].y = self.last_pose.pose.position.y
         self.state_array[0].z = self.last_pose.pose.position.z
 
-        rotation_angle = -yaw_of_pose(self.last_pose)
-        goal_vec_x, goal_vec_y = rotate_vector_by_angle(self.cmd.target_pose.pose.position.x, self.cmd.target_pose.pose.position.y, rotation_angle)
+        #rotation_angle = -yaw_of_pose(self.last_pose)
+        goal_vec_x, goal_vec_y = self.cmd.target_pose.pose.position.x, self.cmd.target_pose.pose.position.y
 
         #target_point
         self.state_array[2].x = goal_vec_x
@@ -115,7 +115,7 @@ class RandomGoalWalker:
         self.state_array[2].z = self.cmd.target_pose.pose.position.z
 
         # current yaw
-        self.state_array[1] = math.atan2(self.current_vel.y, self.current_vel.x)
+        self.state_array[1] = yaw_of_pose(self.last_pose)
 
         self.m_ai.trigger(self.m_aiIO)
         velocity = self.m_aiIO.output[0] * self.max_velocity
@@ -130,12 +130,12 @@ class RandomGoalWalker:
         while rotation_angle > math.pi:
             rotation_angle -= 2 * math.pi
 
-        self.current_vel.x, self.current_vel.y = rotate_vector_by_angle(self.current_vel.x,
-                                                                        self.current_vel.y, rotation_angle)
-        norm = math.sqrt(self.current_vel.x**2 + self.current_vel.y**2)
-        self.current_vel.x /= norm
+        self.current_vel.x, self.current_vel.y = rotate_vector_by_angle(1.0,
+                                                                        0.0, rotation_angle)
+        # norm = math.sqrt(self.current_vel.x**2 + self.current_vel.y**2)
+        # self.current_vel.x /= norm
         self.current_vel.x *= velocity
-        self.current_vel.y /= norm
+        # self.current_vel.y /= norm
         self.current_vel.y *= velocity
 
 

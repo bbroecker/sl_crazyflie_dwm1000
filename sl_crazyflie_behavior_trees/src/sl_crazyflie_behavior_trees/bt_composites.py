@@ -169,8 +169,8 @@ class BTTarget(BTNode):
         return BTNodeState.Success
 
 
-class BTTargetSimulator(BTNode):
-    def __init__(self, state_array, dt, id = 1):
+class BTTargetDiffdrive(BTNode):
+    def __init__(self, state_array, dt, max_turn_vel = 180):
         if isinstance(state_array, BTTarget):
             other = state_array
             BTNode.__init__(self, other)
@@ -183,6 +183,8 @@ class BTTargetSimulator(BTNode):
         self.prev_error = None
         self.d_buffer = collections.deque(maxlen=4)
         self.i_sum = collections.deque(maxlen=20)
+
+        self.max_turn_vel = max_turn_vel
 
     def clone(self):
         return copy.deepcopy(self)
@@ -226,16 +228,17 @@ class BTTargetSimulator(BTNode):
         if Vcmd <= 0.25:
             Vcmd = 0.25
 
-        if self.prev_error is None:
-            self.prev_error = error_angle
-
-        self.i_sum.append(error_angle)
-        d = (error_angle - self.prev_error)/self.dt
-        # print "d1 {0} d2 {1}".format(d, d2)
-
-        self.d_buffer.append(d)
-
-        target_angle_speed = error_angle * 0.45 + sum(self.i_sum) * 0.0025 + sum(self.d_buffer) / len(self.d_buffer) * 0.1
+        # if self.prev_error is None:
+        #     self.prev_error = error_angle
+        #
+        # self.i_sum.append(error_angle)
+        # d = (error_angle - self.prev_error)/self.dt
+        # # print "d1 {0} d2 {1}".format(d, d2)
+        #
+        # self.d_buffer.append(d)
+        #
+        # target_angle_speed = error_angle * 0.45 + sum(self.i_sum) * 0.0025 + sum(self.d_buffer) / len(self.d_buffer) * 0.1
+        target_angle_speed = ((error_angle * 3.0) / math.pi)/180 * self.max_turn_vel
 
         omega = target_angle_speed
         # omega = error_angle/math.pi * 0.07
@@ -252,7 +255,7 @@ class BTTargetSimulator(BTNode):
         return BTNodeState.Success
 
 
-class BTTargetSimulator2(BTNode):
+class BTTargetHolonomic(BTNode):
     def __init__(self, state_array, dt, id = 1):
         if isinstance(state_array, BTTarget):
             other = state_array

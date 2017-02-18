@@ -1,12 +1,14 @@
 <?xml version="1.0"?>
 
 <launch>
+  <arg name="genome_file"/>
   <arg name="cf1_uri" default="radio://0/80/2M" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="wand_topic" default="/Robot_2/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />
   <arg name="wand_frame_id" default="/Robot_2/base_link" />
+  <arg name="collvoid_file" default="collvoid_diff.yaml" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
@@ -32,11 +34,13 @@
     </node>
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
         <arg name="cf_uri" value="$(arg cf1_uri)" />
+        <arg name="collvoid_file" value="$(arg collvoid_file)" />
         <arg name="obstacle_manager_id" value="1" />
         <arg name="cf_pose" value="$(arg cf1_pose)" />
         <arg name="prefix" value="$(arg cf1_prefix)" />
         <arg name="wand_topic" default="$(arg wand_topic)" />
         <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
+        <arg name="genome_file" value="$(arg genome_file)" />
     </include>
     </group>
 

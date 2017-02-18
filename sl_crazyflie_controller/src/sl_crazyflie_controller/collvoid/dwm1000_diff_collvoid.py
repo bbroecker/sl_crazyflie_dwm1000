@@ -10,7 +10,7 @@ from std_srvs.srv import Empty, EmptyResponse
 from tf import transformations
 
 from collvoid_interface import CollvoidInterface
-from sl_crazyflie_behavior_trees.BehaviorTree import BehaviorTree, AIIO
+from sl_crazyflie_behavior_trees.AI.BehaviourTree import BehaviorTree, AIIO
 from sl_crazyflie_behavior_trees.bt_node import BTNodeState
 from sl_crazyflie_controller.sensor.dwm1000_distance_sensor import DWM10000DistanceSensor, INFINITY
 
@@ -22,16 +22,15 @@ class ControlCmd:
         self.abs_psi = 0.0
 
 
-class DWM1000BtCollvoid(CollvoidInterface):
+class DWM1000DiffCollvoid(CollvoidInterface):
     def __init__(self):
         CollvoidInterface.__init__(self)
-        print "HELLO!!!!!!!! DWM1000BtCollvoid"
-        genome_file = rospy.get_param("~collvoid/dwm1000_bt_collvoid/Genome_file")
-        self.max_angle_vel = rospy.get_param("~collvoid/dwm1000_bt_collvoid/max_angle_vel")
-        self.max_angle_increment = rospy.get_param("~collvoid/dwm1000_bt_collvoid/max_angle_increment")
-        self.max_vel = rospy.get_param("~collvoid/dwm1000_bt_collvoid/max_vel")
-        self.timeout = rospy.get_param("~collvoid/dwm1000_bt_collvoid/timeout")
-        pub_rate = rospy.get_param("~collvoid/dwm1000_bt_collvoid/publish_rate")
+        genome_file = rospy.get_param("~collvoid/Genome_file")
+        self.max_angle_vel = rospy.get_param("~collvoid/dwm1000_diff_collvoid/max_angle_vel")
+        self.max_angle_increment = rospy.get_param("~collvoid/dwm1000_diff_collvoid/max_angle_increment")
+        self.max_vel = rospy.get_param("~collvoid/dwm1000_diff_collvoid/max_vel")
+        self.timeout = rospy.get_param("~collvoid/dwm1000_diff_collvoid/timeout")
+        pub_rate = rospy.get_param("~collvoid/dwm1000_diff_collvoid/publish_rate")
         self.start_srvs = rospy.Service("toggle_dwm_avoid", Empty, self.toggle_enable_callback)
         is_active_publisher = rospy.Publisher('dwm_coll_void_active', Bool, queue_size=1)
         self.dwm_sensor = DWM10000DistanceSensor()

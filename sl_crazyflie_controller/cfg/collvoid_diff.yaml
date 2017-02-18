@@ -2,7 +2,7 @@ collvoid:
   controllers:
     - geofencing_node
     - simple_collvoid
-    - dwm1000_bt_collvoid
+    - dwm1000_diff_collvoid
 #    - dwm1000_collvoid
   geofencing:
     min_x: -1.60
@@ -17,7 +17,7 @@ collvoid:
     max_xy_avoid_vel: 0.4
     max_xy_goal_vel: 0.3
     error_factor: 1.7
-  dwm1000_bt_collvoid:
+  dwm1000_diff_collvoid:
     Genome_file: "/home/broecker/collvoid_ea_results/manual_genomes/Genome_manual.xml"
     max_angle_vel: 180.0
     max_angle_increment: 180.0

@@ -4,9 +4,9 @@ import copy
 import rospy
 import xml.etree.ElementTree as ET
 
-from bt_node import BTNode
-from bt_workspace import BTWorkspace
-import bt_factory
+from sl_crazyflie_behavior_trees.bt_node import BTNode
+from sl_crazyflie_behavior_trees.bt_workspace import BTWorkspace
+import sl_crazyflie_behavior_trees.bt_factory
 
 
 class AIIO:
@@ -96,10 +96,15 @@ class BehaviorTree:
         tree_node = node.find("Tree")
         bt_node = tree_node[0]
         print "tree{0}  bt{1}".format(tree_node, bt_node)
-
-        self.m_root_node = bt_factory.BTFactory.get_child_from_node(bt_node)
-
+        self.m_root_node = sl_crazyflie_behavior_trees.bt_factory.BTFactory.get_child_from_node(bt_node)
         return self.m_root_node is not None
+
+
+    def get_num_in(self):
+        return self.m_nIn
+
+    def get_num_out(self):
+        return self.m_nOut
 
     @staticmethod
     def load_from_node(node):
@@ -128,4 +133,3 @@ class BehaviorTree:
         # bt_node = doc.find("BehaviorTree")
         # print bt_node
         return BehaviorTree.load_from_node(doc)
-
