@@ -30,6 +30,7 @@ class DWM1000DiffCollvoid(CollvoidInterface):
         self.max_angle_increment = rospy.get_param("~collvoid/dwm1000_diff_collvoid/max_angle_increment")
         self.max_vel = rospy.get_param("~collvoid/dwm1000_diff_collvoid/max_vel")
         self.timeout = rospy.get_param("~collvoid/dwm1000_diff_collvoid/timeout")
+        self.update_rate = rospy.get_param("~collvoid/dwm1000_diff_collvoid/update_rate")
         pub_rate = rospy.get_param("~collvoid/dwm1000_diff_collvoid/publish_rate")
         self.start_srvs = rospy.Service("toggle_dwm_avoid", Empty, self.toggle_enable_callback)
         is_active_publisher = rospy.Publisher('dwm_coll_void_active', Bool, queue_size=1)
@@ -85,14 +86,14 @@ class DWM1000DiffCollvoid(CollvoidInterface):
         if self.reference_vector is None:
             self.reference_vector = copy.deepcopy(current_target_velocity)
         dt = (rospy.Time.now() - self.last_update).to_sec()
-        speed = self.cmd.vel * self.max_vel
-        rotation_speed = self.cmd.psi_vel * self.max_angle_vel
-        angle_increment = self.cmd.abs_psi * self.max_angle_increment
-        self.reference_vector = self.set_speed(self.reference_vector, speed)
-        self.reference_vector = self.rotate_vel_by_speed(self.reference_vector, rotation_speed, dt)
-        self.reference_vector = self.rotate_vel_by_angle(self.reference_vector, angle_increment)
-
-        self.last_update = rospy.Time.now()
+        if dt > 1./self.update_rate:
+            speed = self.cmd.vel * self.max_vel
+            rotation_speed = self.cmd.psi_vel * self.max_angle_vel
+            angle_increment = self.cmd.abs_psi * self.max_angle_increment
+            self.reference_vector = self.set_speed(self.reference_vector, speed)
+            self.reference_vector = self.rotate_vel_by_speed(self.reference_vector, rotation_speed, dt)
+            self.reference_vector = self.rotate_vel_by_angle(self.reference_vector, angle_increment)
+            self.last_update = rospy.Time.now()
 
         return self.reference_vector
 

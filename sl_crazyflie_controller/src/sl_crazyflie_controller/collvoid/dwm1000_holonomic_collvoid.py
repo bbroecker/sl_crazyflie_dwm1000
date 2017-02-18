@@ -30,6 +30,7 @@ class DWM1000HolonomicCollvoid(CollvoidInterface):
         self.max_angle_increment = rospy.get_param("~collvoid/dwm1000_holonomic_collvoid/max_angle_increment")
         self.max_vel = rospy.get_param("~collvoid/dwm1000_holonomic_collvoid/max_vel")
         self.timeout = rospy.get_param("~collvoid/dwm1000_holonomic_collvoid/timeout")
+        self.update_rate = rospy.get_param("~collvoid/dwm1000_diff_collvoid/update_rate")
         pub_rate = rospy.get_param("~collvoid/dwm1000_holonomic_collvoid/publish_rate")
         self.start_srvs = rospy.Service("toggle_dwm_avoid", Empty, self.toggle_enable_callback)
         is_active_publisher = rospy.Publisher('dwm_coll_void_active', Bool, queue_size=1)
@@ -42,7 +43,7 @@ class DWM1000HolonomicCollvoid(CollvoidInterface):
         self.enabled = False
         self.last_update = rospy.Time.now()
         self.active = False
-        self.reference_vector = None
+        self.last_velocity = None
 
         rate = rospy.Rate(pub_rate)
 
@@ -82,18 +83,18 @@ class DWM1000HolonomicCollvoid(CollvoidInterface):
     # calculates the new target velocity based on the collvoid scheme
     # target_Velocity is the current target velocity towards the goal
     def calculate_velocity(self, current_target_velocity):
-        self.reference_vector = copy.deepcopy(current_target_velocity)
         dt = (rospy.Time.now() - self.last_update).to_sec()
-        speed = self.cmd.vel * self.max_vel
-        rotation_speed = self.cmd.psi_vel * self.max_angle_vel
-        angle_increment = self.cmd.abs_psi * self.max_angle_increment
-        self.reference_vector = self.set_speed(self.reference_vector, speed)
-        self.reference_vector = self.rotate_vel_by_speed(self.reference_vector, rotation_speed, dt)
-        self.reference_vector = self.rotate_vel_by_angle(self.reference_vector, angle_increment)
+        if self.last_velocity is None or dt > 1.0 / self.update_rate:
+            self.last_velocity = copy.deepcopy(current_target_velocity)
+            speed = self.cmd.vel * self.max_vel
+            rotation_speed = self.cmd.psi_vel * self.max_angle_vel
+            angle_increment = self.cmd.abs_psi * self.max_angle_increment
+            self.last_velocity = self.set_speed(self.last_velocity, speed)
+            self.last_velocity = self.rotate_vel_by_speed(self.last_velocity, rotation_speed, dt)
+            self.last_velocity = self.rotate_vel_by_angle(self.last_velocity, angle_increment)
+            self.last_update = rospy.Time.now()
 
-        self.last_update = rospy.Time.now()
-
-        return self.reference_vector
+        return self.last_velocity
 
     def get_sensor_data(self):
         current_time = rospy.Time.now()
@@ -115,7 +116,7 @@ class DWM1000HolonomicCollvoid(CollvoidInterface):
     def is_active(self):
         distance, closure_rate = self.get_sensor_data()
         if not self.enabled or distance is None or closure_rate is None:
-            self.reference_vector = None
+            self.last_velocity = None
             return False
         else:
             self.m_aiIO.input[0] = distance

@@ -23,4 +23,5 @@ collvoid:
     max_angle_increment: 180.0
     max_vel: 0.5
     timeout: 1.0
+    update_rate: 10.0
     publish_rate: 2.0
