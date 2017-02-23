@@ -202,7 +202,6 @@ class BTTargetDiffdrive(BTNode):
         target = self.state_array[2]
 
 
-
         k1 = 5
         k2 = 10
         # print "pos x {0} y {1}".format(current_pos.x, current_pos.y)
@@ -241,6 +240,7 @@ class BTTargetDiffdrive(BTNode):
         target_angle_speed = ((error_angle * 3.0) / math.pi)/180 * self.max_turn_vel
 
         omega = target_angle_speed
+        # omega = error_angle / math.pi
         # omega = error_angle/math.pi * 0.07
         omega = 1 if omega > 1.0 else omega
         omega = -1 if omega < -1.0 else omega
@@ -253,6 +253,37 @@ class BTTargetDiffdrive(BTNode):
         self.prev_error = error_angle
 
         return BTNodeState.Success
+
+
+class BTGreaterID(BTNode):
+    def __init__(self, state_array):
+        if isinstance(state_array, BTGreaterID):
+            other = state_array
+            BTNode.__init__(self, other)
+            self.state_array = other.state_array
+        else:
+            BTNode.__init__(self, "BTGreaterID", False)
+            self.state_array = state_array
+
+
+    def clone(self):
+        return copy.deepcopy(self)
+
+    def save_attributes(self, node):
+        pass
+
+    def load_attributes(self, node):
+        return False
+
+    def tick_fcn(self, workspace):
+        assert isinstance(workspace, BTWorkspace)
+        my_id = self.state_array[0]
+        other_id = self.state_array[1]
+
+        if my_id > other_id:
+            return BTNodeState.Success
+        else:
+            return BTNodeState.Failure
 
 
 class BTTargetHolonomic(BTNode):
@@ -303,7 +334,7 @@ class BTTargetHolonomic(BTNode):
         # while error_angle < -math.pi:
         #     error_angle += 2 * math.pi
 
-        Vcmd = pos_to_target.norm() * 1.2
+        Vcmd = pos_to_target.norm() * 3.0
         # Vcmd = (posToTarget.norm()) * (1 - (fabs(targetAngle) / M_PI));
         # Vcmd = (1 - (abs(error_angle) / math.pi))
         # Vcmd = (v) - (abs(error_angle) / math.pi)

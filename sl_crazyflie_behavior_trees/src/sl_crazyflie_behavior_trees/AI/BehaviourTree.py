@@ -53,7 +53,7 @@ class BehaviorTree:
         bt_node = ET.SubElement(node, "BehaviorTree")
 
         workspace_node = ET.SubElement(bt_node, "BTWorkspace")
-        self.m_workspace.save(workspace_node);
+        self.m_workspace.save(workspace_node)
 
         tree_node = ET.SubElement(bt_node, "Tree")
         self.m_root_node.save(tree_node)
@@ -71,6 +71,9 @@ class BehaviorTree:
         for i in range(self.m_nIn):
             self.m_workspace.set_in(i, aiio_data.input[i])
 
+
+
+
         assert isinstance(self.m_workspace, BTWorkspace)
         # print "1. workspace {0}".format(self.m_workspace.m_workspaceData)
         if self.m_root_node is not None:
@@ -81,6 +84,9 @@ class BehaviorTree:
         aiio_data.output = []
         for i in range(self.m_nOut):
             aiio_data.output.append(self.m_workspace.get_out(i))
+
+        # if self.m_workspace.m_workspaceData[4] <= 0.5:
+        #     print "do nothing {0}".format(self.m_workspace.m_workspaceData[3])
 
         return result
 
@@ -95,7 +101,6 @@ class BehaviorTree:
 
         tree_node = node.find("Tree")
         bt_node = tree_node[0]
-        print "tree{0}  bt{1}".format(tree_node, bt_node)
         self.m_root_node = sl_crazyflie_behavior_trees.bt_factory.BTFactory.get_child_from_node(bt_node)
         return self.m_root_node is not None
 
@@ -114,7 +119,7 @@ class BehaviorTree:
         numIn  = int(workspace_node.attrib["nIn"])
         numOut = int(workspace_node.attrib["nOut"])
         numPar = int(workspace_node.attrib["nPar"])
-        print numIn, numOut, numPar
+
 
         bt = BehaviorTree(numIn, numOut, numPar)
         bt.load_data(node)

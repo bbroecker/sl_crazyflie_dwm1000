@@ -48,7 +48,6 @@ class Polygon:
             if vert.y < self.m_min.y:
                 self.m_min.y = vert.y
 
-        print "min {0} {1} max {2} {3} {4}".format(self.m_min.x, self.m_min.y, self.m_max.x, self.m_max.y, len(self.m_vertices))
 
         self.m_vertices.append(self.m_vertices[0])
         self.m_locked = True
@@ -65,7 +64,6 @@ class Polygon:
 
         min = copy.deepcopy(self.m_min)
         max = copy.deepcopy(self.m_max)
-        print "just use global variables"
         return True
 
     def point_in_poly(self, p):
@@ -121,7 +119,6 @@ class Polygon:
         vertices.pop()
 
         dummy = Polygon()
-        print "vertices size: {0}".format(len(vertices))
         while len(vertices) > 0:
 
             for i in range(len(dummy.m_vertices) + 1):
@@ -135,7 +132,6 @@ class Polygon:
                     break
                 else:
                     dummy.m_vertices.pop(i)
-        print "dummy size: {0}".format(len(dummy.m_vertices))
         dummy.lock()
         self.m_vertices = []
         self.m_vertices = copy.deepcopy(dummy.m_vertices)

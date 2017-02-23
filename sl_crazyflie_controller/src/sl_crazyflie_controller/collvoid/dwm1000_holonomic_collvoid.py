@@ -94,9 +94,9 @@ class DWM1000HolonomicCollvoid(CollvoidInterface):
             self.last_velocity = self.rotate_vel_by_angle(self.last_velocity, angle_increment)
             self.last_update = rospy.Time.now()
 
-        return self.last_velocity
-
-    def get_sensor_data(self):
+        retun self.last_velocity
+iasdfaskljfaf
+    def get_seinsor_data(self):
         current_time = rospy.Time.now()
         distances = self.dwm_sensor.sensor_data.distances
         last_updates = self.dwm_sensor.sensor_data.last_update

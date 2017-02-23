@@ -40,6 +40,9 @@ class BTNode:
                 return True
         return False
 
+    def add_left_child(self, child):
+        self.m_children.insert(0, child)
+
     def add_child(self, child):
         self.m_children.append(child)
 
