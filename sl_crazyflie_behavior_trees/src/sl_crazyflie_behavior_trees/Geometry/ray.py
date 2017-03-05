@@ -59,16 +59,16 @@ class Ray:
 
             if abs(dx) < GEOMETRY_SMALL_NUMBER:
                 if abs(s.p0.x - self.p0.x) < GEOMETRY_SMALL_NUMBER:
-                    ps = copy.deepcopy(self.p0)
+                    ps = point.Point(self.p0)
                     ts = 0
                     return 0, ps, ts
                 else:
-                    ps = copy.deepcopy(self.p0)
+                    ps = point.Point(self.p0)
                     return polygon.INFINITY, ps, ts
             else:
                 dy = (s.p0.y + (s.p1.y - s.p0.y)*ts) - self.p0.y
                 if angle * dy < 0:
-                    ps = copy.deepcopy(self.p0)
+                    ps = point.Point(self.p0)
                     return polygon.INFINITY, ps, ts
                 else:
                     sp1sp0 = g_vector.GVector(s.p1 - s.p0)

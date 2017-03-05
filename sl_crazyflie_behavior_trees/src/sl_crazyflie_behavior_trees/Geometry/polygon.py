@@ -16,7 +16,7 @@ class Polygon:
             self.m_locked = other.m_locked
             self.m_min = other.m_min
             self.m_max = other.m_max
-            self.m_vertices = copy.deepcopy(other.m_vertices)
+            self.m_vertices = copy.copy(other.m_vertices)
         else:
             self.m_locked = False
             self.m_vertices = []
@@ -35,8 +35,8 @@ class Polygon:
 
     def lock(self):
 
-        self.m_min = copy.deepcopy(self.m_vertices[0])
-        self.m_max = copy.deepcopy(self.m_vertices[0])
+        self.m_min = point.Point(self.m_vertices[0])
+        self.m_max = point.Point(self.m_vertices[0])
 
         for vert in self.m_vertices:
             if vert.x > self.m_max.x:
@@ -62,8 +62,8 @@ class Polygon:
         if not self.m_locked:
             return False
 
-        min = copy.deepcopy(self.m_min)
-        max = copy.deepcopy(self.m_max)
+        min = point.Point(self.m_min)
+        max = point.Point(self.m_max)
         return True
 
     def point_in_poly(self, p):
@@ -115,7 +115,7 @@ class Polygon:
         if self.is_self_intersecting():
             return True
 
-        vertices = copy.deepcopy(self.m_vertices)
+        vertices = copy.copy(self.m_vertices)
         vertices.pop()
 
         dummy = Polygon()
@@ -123,10 +123,10 @@ class Polygon:
 
             for i in range(len(dummy.m_vertices) + 1):
                 # print "0. {0} {1}".format(len(dummy.m_vertices), i)
-                dummy.m_vertices.insert(i, copy.deepcopy(vertices[0]))
+                dummy.m_vertices.insert(i, copy.copy(vertices[0]))
                 # print "1. {0} {1}".format(len(dummy.m_vertices), i+1)
                 if len(vertices) > 1:
-                    dummy.m_vertices.insert(i + 1, copy.deepcopy(vertices[1]))
+                    dummy.m_vertices.insert(i + 1, copy.copy(vertices[1]))
                 if not dummy.is_self_intersecting():
                     vertices.pop(0)
                     break
@@ -134,7 +134,7 @@ class Polygon:
                     dummy.m_vertices.pop(i)
         dummy.lock()
         self.m_vertices = []
-        self.m_vertices = copy.deepcopy(dummy.m_vertices)
+        self.m_vertices = copy.copy(dummy.m_vertices)
         return True
 
 
@@ -161,12 +161,12 @@ class Polygon:
         segment_counter = 0
 
         for i in range(0, len(self.m_vertices) - 1, 1):
-
-            p0 = copy.deepcopy(self.m_vertices[i])
-            p1 = copy.deepcopy(self.m_vertices[i + 1])
+            p0 = point.Point(self.m_vertices[i])
+            p1 = point.Point(self.m_vertices[i + 1])
             segment_counter += 1
             tmp = segment.Segment(p0, p1)
-            tmp = tmp.distance2D(pt)
+            # tmp = tmp.distance2D(pt)
+            tmp = tmp.fast_distance2D(pt)
             # print "new idx!!!! {0} {1}".format(tmp, dist)
             if tmp < dist:
                 dist = tmp
@@ -180,8 +180,8 @@ class Polygon:
         assert isinstance(pt, point.Point)
         dist = 0
         for i in range(0, len(self.m_vertices)-1, 1):
-            p0 = copy.deepcopy(self.m_vertices[i])
-            p1 = copy.deepcopy(self.m_vertices[i + 1])
+            p0 = point.Point(self.m_vertices[i])
+            p1 = point.Point(self.m_vertices[i + 1])
             tmp = segment.Segment(p0, p1).distance2D(pt)
             if tmp > dist:
                 dist = tmp
@@ -286,7 +286,7 @@ class Polygon:
     def distance(self, ray):
         dist = g_vector.GVector(self.m_min, self.m_max).norm()
         tmp_point = point.Point()
-        tmp_ts = 0;
+        tmp_ts = 0
         impact_point = point.Point()
         ts = 0
 
@@ -295,7 +295,7 @@ class Polygon:
             tmp, tmp_point, tmp_ts = ray.intersect2(s)
             if tmp < dist:
                 dist = tmp
-                impact_point = copy.deepcopy(tmp_point)
+                impact_point = point.Point(tmp_point)
                 ts = tmp_ts
 
         return dist, impact_point, ts

@@ -328,11 +328,11 @@ class BTTargetHolonomic(BTNode):
 
         # print "current_heading {0} targetAngle {1}".format(current_heading, error_angle)
 
-        # while error_angle > math.pi:
-        #     error_angle -= 2 * math.pi
-        #
-        # while error_angle < -math.pi:
-        #     error_angle += 2 * math.pi
+        while error_angle > math.pi:
+            error_angle -= 2 * math.pi
+
+        while error_angle < -math.pi:
+            error_angle += 2 * math.pi
 
         Vcmd = pos_to_target.norm() * 3.0
         # Vcmd = (posToTarget.norm()) * (1 - (fabs(targetAngle) / M_PI));

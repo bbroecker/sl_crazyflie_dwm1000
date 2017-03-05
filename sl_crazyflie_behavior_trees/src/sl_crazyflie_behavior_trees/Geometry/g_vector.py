@@ -23,6 +23,7 @@ class GVector:
             self.y = 0 if y is None else y
             self.z = 0 if z is None else z
 
+
     def set_spherical(self, az, el = None, r = None):
         el = 0 if el is None else el
         r = 1 if r is None else r
@@ -37,14 +38,14 @@ class GVector:
         self.z = 0
 
     def get_spherical(self):
-        r = math.sqrt(self.x**2 + self.y**2 + self.z**2)
+        r = math.sqrt(self.x*self.x + self.y*self.y + self.z*self.z)
         el = math.atan2(self.z, self.r)
         az = math.atan2(self.y, self.x)
         return az, el, r
 
 
     def getPolar(self):
-        r = math.sqrt(self.x**2 + self.y**2)
+        r = math.sqrt(self.x*self.x + self.y*self.y)
         theta = math.atan2(self.y, self.x)
         return theta, r
 
@@ -65,10 +66,10 @@ class GVector:
         return GVector(self.y * vec.z - self.z * vec.y, self.z * vec.x - self.x * vec.z, self.x * vec.y - self.y * vec.x)
 
     def norm(self):
-        return math.sqrt(self.x**2 + self.y**2 + self.z**2)
+        return math.sqrt(self.x*self.x + self.y*self.y + self.z*self.z)
 
     def norm2(self):
-        return self.x **2 + self.y **2 + self.z**2
+        return self.x*self.x + self.y*self.y + self.z*self.z
 
     def perp2(self, v):
         return self.x * v.y - self.y * v.x
