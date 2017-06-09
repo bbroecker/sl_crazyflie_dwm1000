@@ -1,0 +1,17 @@
+collvoid:
+  controllers:
+    - geofencing_node
+    - simple_collvoid
+  geofencing:
+    min_x: -1.60
+    min_y: -2.1
+    max_x: 2.3
+    max_y: 1.5
+    recover_speed: 0.3
+    buffer_len: 0.05
+  simple_collvoid:
+    min_xy_dist: 0.17
+    max_xy_dist: 0.30
+    max_xy_avoid_vel: 0.4
+    max_xy_goal_vel: 0.3
+    error_factor: 1.7

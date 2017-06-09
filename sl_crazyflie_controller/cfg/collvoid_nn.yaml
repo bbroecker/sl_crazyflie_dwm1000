@@ -1,0 +1,23 @@
+collvoid:
+  controllers:
+    - geofencing_node
+    - simple_collvoid
+    - nn_controller
+  geofencing:
+    min_x: -1.60
+    min_y: -2.1
+    max_x: 2.3
+    max_y: 1.5
+    recover_speed: 0.3
+    buffer_len: 0.05
+  simple_collvoid:
+    min_xy_dist: 0.17
+    max_xy_dist: 0.30
+    max_xy_avoid_vel: 0.4
+    max_xy_goal_vel: 0.3
+    error_factor: 1.7
+  nn_controller:
+    dwm1000_active: False
+    dwm_timeout: 0.5
+    config_file: "/home/broecker/src/cf_nn_weights/dqn/next_neighbour1/nn_config.yaml"
+#    config_file: "/home/broecker/src/ros/swarm_avoid_ws/src/tf_nn_sim/src/tf_nn_sim/Config/NeuralNetwork/nn_config.yaml"

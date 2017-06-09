@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   rospy
   sensor_msgs
-  sl_crazyflie_behavior_trees
+  tf_nn_sim
   sl_crazyflie_srvs
   std_srvs
 )

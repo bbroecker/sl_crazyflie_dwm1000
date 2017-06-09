@@ -7,7 +7,7 @@
   <arg name="wand_topic" default="/Robot_2/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />
   <arg name="wand_frame_id" default="/Robot_2/base_link" />
-  <arg name="collvoid_file" default="collvoid_basic.yaml" />
+  <arg name="collvoid_file" default="collvoid_nn.yaml" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
@@ -24,6 +24,8 @@
       <rosparam param="pose_topics">["/Robot_1/pose", /Robot_3/pose]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
+    <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop.py" output="screen" >
+    </node>
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
         <arg name="cf_uri" value="$(arg cf1_uri)" />
         <arg name="obstacle_manager_id" value="1" />
