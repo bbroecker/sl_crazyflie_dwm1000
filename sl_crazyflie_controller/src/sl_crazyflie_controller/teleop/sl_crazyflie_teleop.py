@@ -113,7 +113,7 @@ class Teleop:
         ch_flm = ChangeFlightModeRequest()
         ch_flm.mode.id = -1
         if self.is_button_released('takeoff', joy_msgs.buttons[TAKEOFF]):
-            if self.current_flight_mode_id not in POS_CTRL_MODES:
+            if self.current_flight_mode_id not in POS_CTRL_MODES or self.current_flight_mode_id == FlightMode.LAND:
                 ch_flm.mode.id = FlightMode.TAKEOFF
             else:
                 ch_flm.mode.id = FlightMode.LAND

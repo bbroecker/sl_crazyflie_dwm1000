@@ -12,11 +12,11 @@ import copy
 RATE = 200.0
 POSE_TIME_OUT = 0.5
 CONTROLLER_RP_THRESH = 0.05
-TAKEOFF_HEIGHT = 1.3
 WAND_DISTANCE = 0.5
 POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.14
 LAND_VEL = -0.25
+TAKEOFF_HEIGHT = 1.6
 TAKEOFF_VEL = 0.25
 Z_VEL_SAMPLE_SIZE = 10
 MAX_THROW_HEIGHT = 2.5
@@ -76,7 +76,7 @@ class FlightModeManager:
             else:
                 change_mode = False
         elif self.current_flightmode.id is FlightMode.TAKEOFF:
-            if self.last_pose_msg.pose.position.z >= target_pose.pose.position.z:
+            if self.last_pose_msg.pose.position.z >= TAKEOFF_HEIGHT:
                 new_mode_id = FlightMode.POS_HOLD
             else:
                 change_mode = False
