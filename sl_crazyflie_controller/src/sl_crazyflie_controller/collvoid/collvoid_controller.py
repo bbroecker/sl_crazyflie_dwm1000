@@ -25,14 +25,16 @@ class CollvoidController:
 
 
     def calc_collvoid_velocity(self, current_pose, current_velocity):
+        active = False
         new_vel = current_velocity
         for behaviour in self.controllers:
             assert isinstance(behaviour, CollvoidInterface)
             behaviour.update_cf_pose(current_pose)
             if behaviour.is_active():
+                active = True
                 new_vel = behaviour.calculate_velocity(current_velocity)
                 break
-        return new_vel
+        return active, new_vel
 
 def find_possible_child_classes(dirname):
     names = []

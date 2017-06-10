@@ -55,7 +55,9 @@ class VelocityController(object):
         self.pub_thrust_percentage = rospy.Publisher("hover/thrust_percentage", Float32, queue_size=1)
 
         self.pub_wand_target = rospy.Publisher("hover/wand_target", PoseStamped, queue_size=10)
-
+        self.prev_x_vel = 0.0
+        self.max_vel = 0.0
+        self.max_accel = 0.0
         # std parameters
         self.running = False
         self.last_update_time = rospy.get_time()
@@ -185,7 +187,16 @@ class VelocityController(object):
 
             local_speed_x, local_speed_y, global_speed_x, global_speed_y = self.calc_update_avg_speeds(
                 local_speed_x, local_speed_y, global_speed_x, global_speed_y)
-
+            #vel and access check
+            # u = False
+            # if abs(local_speed_x) > self.max_vel:
+            #     self.max_vel = abs(local_speed_x)
+            #     u = True
+            # if abs((local_speed_x - self.prev_x_vel)/dt) > self.max_accel:
+            #     self.max_accel = abs((local_speed_x - self.prev_x_vel)/dt)
+            #     u = True
+            # print "speed: {0} accel {1}".format(abs(local_speed_x),abs((local_speed_x - self.prev_x_vel)/dt))
+            # self.prev_x_vel = local_speed_x
                 # print "target x {0} target y {1}".format(target_speed_x,target_speed_y)
             x = self.calc_xy_vel(target_vel.x, local_speed_x, dt, self.pid_xy_pitch,
                                self.target_speed_x_avg_list, [self.pub_target_x_speed, self.pub_current_x_speed])

@@ -68,6 +68,7 @@ class FlightController:
         self.last_fightmode_update = rospy.Time.now()
         self.last_external_cmd = None
         self.last_external_cmd_update = None
+        self.is_collvoid_active = False
         self.mode_manager = FlightModeManager()
         self.pid_position = PositonController()
         self.pid_velocity = VelocityController()
@@ -109,8 +110,12 @@ class FlightController:
 
                 else:
                     target_velocity = self.calc_target_velocities(self.target_msg, dt)
-
-                target_velocity = self.collvoid_controller.calc_collvoid_velocity(self.last_pose_msg, target_velocity)
+                coll_active, target_velocity = self.collvoid_controller.calc_collvoid_velocity(self.last_pose_msg, target_velocity)
+                # if coll_active:
+                #     print "before {0} after {1}".format(z, target_velocity.z)
+                if self.is_collvoid_active and not coll_active:
+                    self.target_msg.target_pose = copy.copy(self.last_pose_msg)
+                self.is_collvoid_active = coll_active
                 cmd_vel = self.pid_velocity.update_cmd_twist(self.last_pose_msg, target_velocity, dt)
                 self.pub_current_pose.publish(self.last_pose_msg)
                 self.pub_target_pose.publish(self.target_msg.target_pose)
