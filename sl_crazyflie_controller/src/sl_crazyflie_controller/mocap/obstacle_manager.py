@@ -3,7 +3,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from sl_crazyflie_msgs.msg import Obstacle
 
-from sl_crazyflie_controller.collvoid.simple_collvoid import ObstacleTime
+from sl_crazyflie_controller.collvoid.simple_collvoid import ObstacleTime, get_yaw_from_msg
+import numpy as np
 
 POSE_TOPIC_PARAM = "~OBJECT_ID/pose_topic"
 POSE_TOPIC_OUT = "/OBJECT_ID/pose"
@@ -36,9 +37,21 @@ class PoseManager:
         obs.x = pose.pose.position.x
         obs.y = pose.pose.position.y
         obs.z = pose.pose.position.z
+        obs.x_vel_local = obs.y_vel_local = obs.z_vel = 0.0
+        obs.x_vel_global = obs.y_vel_global = 0.0
+        obs.yaw = get_yaw_from_msg(pose)
         obs.id = i
+        now = rospy.Time.now()
+        if i in self.obstacles:
+            prev_ob = self.obstacles[i]
+            dt = (now - prev_ob.time).to_sec()
+            obs.x_vel_global = (obs.x - prev_ob.obs.x) / dt
+            obs.y_vel_global = (obs.y - prev_ob.obs.y) / dt
+            obs.z_vel = (obs.z - prev_ob.obs.z) / dt
+            obs.x_vel_local = obs.x_vel_global * np.cos(-obs.yaw) - obs.y_vel_local * np.sin(-obs.yaw)
+            obs.y_vel_local = obs.x_vel_global * np.sin(-obs.yaw) + obs.y_vel_local * np.cos(-obs.yaw)
 
-        ot = ObstacleTime(obs, rospy.Time.now())
+        ot = ObstacleTime(obs, now)
 
         self.obstacles[i] = ot
 

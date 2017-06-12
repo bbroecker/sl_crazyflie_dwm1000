@@ -1,4 +1,10 @@
 float32 x
+float32 x_vel_local
+float32 x_vel_global
 float32 y
+float32 y_vel_local
+float32 y_vel_global
 float32 z
+float32 z_vel
+float32 yaw
 int16 id
