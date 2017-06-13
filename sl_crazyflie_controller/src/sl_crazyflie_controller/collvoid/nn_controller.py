@@ -37,10 +37,10 @@ def translate(value, leftMin, leftMax, rightMin, rightMax):
 
 
 def wrap_angle(angle):
-    if angle > np.pi:
-        angle -= np.pi
-    if angle < -np.pi:
-        angle += np.pi
+    while angle > np.pi:
+        angle -= 2*np.pi
+    while angle < -np.pi:
+        angle += 2*np.pi
     return angle
 
 
@@ -95,7 +95,7 @@ class NNMovementWrapper:
     def get_new_goal_state(self, my_vx, my_vy, distance, dt):
         velocity = np.sqrt(my_vx ** 2 + my_vy ** 2)
         velocity_norm = translate(velocity, 0, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
-        velocity_angle = np.arctan2(my_vy, my_vx)
+        velocity_angle = math.atan2(my_vy, my_vx)
         velocity_angle_norm = translate(velocity_angle, -np.pi, np.pi, self.angle_cfg.min_x, self.angle_cfg.max_x)
         dist_norm = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x,
                               self.angle_cfg.max_x)
@@ -115,20 +115,20 @@ class NNMovementWrapper:
         my_velocity = np.sqrt(my_vx ** 2 + my_vy ** 2)
         my_velocity_norm = translate(my_velocity, 0, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                      self.angle_cfg.max_x)
-        my_velocity_angle = np.arctan2(my_vy, my_vx)
+        my_velocity_angle = math.atan2(my_vy, my_vx)
         my_velocity_angle_norm = translate(my_velocity_angle, -np.pi, np.pi, self.angle_cfg.min_x, self.angle_cfg.max_x)
 
         other_vel = np.sqrt(o_vx ** 2 + o_vy ** 2)
         other_vel_norm = translate(other_vel, 0, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                    self.angle_cfg.max_x)
-        other_vel_angle = np.arctan2(o_vx, o_vy)
+        other_vel_angle = math.atan2(o_vx, o_vy)
         other_vel_angle_norm = translate(other_vel_angle, -np.pi, np.pi, self.angle_cfg.min_x, self.angle_cfg.max_x)
 
         dist = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x, self.angle_cfg.max_x)
         s = [my_velocity_norm, my_velocity_angle_norm, other_vel_norm, other_vel_angle_norm, dist, dt]
-        print "my_vel: {} my_angle: {} distance: {} dt: {} | o_vel {} o_angel".format(my_velocity, my_velocity_angle,
-                                                                                      distance, dt, other_vel,
-                                                                                      other_vel_angle)
+        # print "my_vel: {} my_angle: {} distance: {} dt: {} | o_vel {} o_angel".format(my_velocity, my_velocity_angle,
+        #                                                                               distance, dt, other_vel,
+        #                                                                               other_vel_angle)
 
         predict_angle, self.rrn_states_obstacle = self.angle_predict_network.predict_angle(self.sess, s,
                                                                                            self.rrn_states_obstacle)
@@ -230,7 +230,10 @@ class NNController(CollvoidInterface):
         movement_config_file = rospy.get_param("~collvoid/nn_controller/movement_config_file")
         angle_config_file = rospy.get_param("~collvoid/nn_controller/angle_config_file")
         self.movement_cfg_predict = NNConfigMovement(movement_config_file)
+        self.movement_cfg_predict.keep_prob = 1.0
         self.angle_cfg_predict = NNConfigAngle(angle_config_file)
+        self.angle_cfg_predict.keep_prob = 1.0
+        self.accuracy_list = []
         self.nn = NNMovementWrapper(self.movement_cfg_predict, self.angle_cfg_predict)
         self.update_rate = self.movement_cfg_predict.update_rate
         self.max_velocity = self.movement_cfg_predict.max_velocity
@@ -287,6 +290,7 @@ class NNController(CollvoidInterface):
         print "stop_callback"
         self.enabled = False
         self.goal_pose = None
+        self.last_update = None
         self.avg_buffer = collections.deque(maxlen=self.avg_buffer_size)
         self.nn.reset()
         return EmptyResponse()
@@ -331,15 +335,17 @@ class NNController(CollvoidInterface):
         # print "nn incoming {0}".format(current_target_velocity.z)
         if (dt >= 1.0 / self.update_rate) and self.goal_pose is not None:
             if self.prev_pose is None:
-                self.prev_pose = copy.copy(self.current_pose)
+                self.prev_pose = copy.deepcopy(self.current_pose)
             self.last_velocity = copy.deepcopy(current_target_velocity)
             gx = self.goal_pose.pose.position.x - self.current_pose.pose.position.x
             gy = self.goal_pose.pose.position.y - self.current_pose.pose.position.y
             gx, gy = self.rotate_vel(gx, gy, -get_yaw_from_msg(self.current_pose))
+
             g_distance = np.sqrt(gx ** 2 + gy ** 2)
             vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
             vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
             vel_x, vel_y = self.rotate_vel(vel_x, vel_y, -get_yaw_from_msg(self.current_pose))
+
             if len(self.current_obstacles) <= 0:
                 ox = self.max_sensor_distance * np.cos(0.0)
                 oy = self.max_sensor_distance * np.sin(0.0)
@@ -350,13 +356,25 @@ class NNController(CollvoidInterface):
                 oy = obstacle.y - self.current_pose.pose.position.y
                 ox, oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
                 o_distance = np.sqrt(ox ** 2 + oy ** 2)
-                _, _, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
-                                                               o_distance, dt)
+                ox, oy, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
+                                                             o_distance, dt)
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
 
+            real_angle = math.atan2(gy, gx)
+            real_angle_translate = translate(real_angle, -np.pi, np.pi, -1.0, 1.0)
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
-            gx_, gy_, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
+            gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
+            angle_trans = translate(angle, -np.pi, np.pi, -1.0, 1.0)
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
+            # self.publish_predict_angle(self.pre_goal_angle_pub, real_angle)
+            # print "real_angle: {} pre angle: {}".format(real_angle, angle_trans)
+            self.accuracy_list.append((2.0 - abs(real_angle_translate - angle_trans)) / 2.0)
+            # print dt
+            if len(self.accuracy_list) > int(1.0 / dt) * 5.0:
+                a = sum(self.accuracy_list) / len(self.accuracy_list)
+                error = (((a * 2.0) - 2.0) * -1.0) * 180.0
+                print "accuracy: {} avg_error: {}".format(a, error)
+                self.accuracy_list = []
             tmp = self.nn.best_velocity(vel_x, vel_y, gx, gy, ox, oy, dt)
             # print "prev x: {0} y: {1} after {2} {3} {4}".format(self.last_velocity.x, self.last_velocity.y, tmp.x, tmp.y, self.max_velocity)
             self.last_velocity.x = 0
@@ -366,19 +384,22 @@ class NNController(CollvoidInterface):
             for v in self.avg_buffer:
                 self.last_velocity.x += v.x / b_size
                 self.last_velocity.y += v.y / b_size
-            self.prev_pose = copy.copy(self.current_pose)
+            self.prev_pose = copy.deepcopy(self.current_pose)
             self.last_update = rospy.Time.now()
 
         return self.last_velocity
 
     def publish_predict_angle(self, publisher, angle):
-        tmp = copy.copy(self.current_pose)
+        tmp = copy.deepcopy(self.current_pose)
         # assert isinstance(tmp, PoseStamped)
         # tmp.header.
         yaw = get_yaw_from_msg(tmp)
+        global_angle = wrap_angle(yaw + angle)
+        # global_angle = wrap_angle(angle)
+        # print "global angle: ", 180.0 * (global_angle / np.pi)
         tmp.header.stamp = rospy.Time.now()
         tmp.pose.orientation.x, tmp.pose.orientation.y, tmp.pose.orientation.z, tmp.pose.orientation.w = quaternon_from_yaw(
-            wrap_angle(yaw + angle))
+            global_angle)
         publisher.publish(tmp)
 
     def get_closes_obs(self):
