@@ -179,7 +179,7 @@ class NNMovementWrapper:
 
         accel = self.movement_cfg.acceleration * delta_time
         diagonal = np.sqrt((accel ** 2) / 2.0)
-        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) < 0.10 and np.sqrt(obstacle_dx ** 2 + obstacle_dy ** 2) > 0.5:
+        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) < 0.15 and np.sqrt(obstacle_dx ** 2 + obstacle_dy ** 2) > 0.4:
             self.target_goal_vel.x = 0.0
             self.target_goal_vel.y = 0.0
         else:
