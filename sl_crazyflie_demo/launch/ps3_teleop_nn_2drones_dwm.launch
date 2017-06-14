@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+<launch>
+  <arg name="cf1_uri" default="radio://0/80/2M" />
+  <arg name="cf2_uri" default="radio://0/10/1M" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="cf1_prefix" default="crazyflie1" />
+  <arg name="cf2_prefix" default="crazyflie2" />
+  <arg name="wand_topic" default="/Robot_3/pose" />
+  <arg name="cf1_pose" default="/Robot_1/pose" />
+  <arg name="cf2_pose" default="/Robot_2/pose" />
+  <arg name="wand_frame_id" default="/Robot_3/base_link" />
+  <arg name="collvoid_file" default="collvoid_nn_dwm1000.yaml" />
+
+  <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
+  </include>
+
+  <node name="joy" pkg="joy" type="joy_node" output="screen" >
+      <param name="dev" value="$(arg joy_dev)" />
+  </node>
+
+   <node name="joy_distributor" pkg="sl_crazyflie_controller" type="joy_distributor.py" output="screen" >
+      <rosparam param="cf_name_spaces">["/crazyflie1", "/crazyflie2"]</rosparam>
+  </node>
+   <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
+      <rosparam param="ids">[1, 2]</rosparam>
+      <rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>
+  </node>
+   <group ns="$(arg cf1_prefix)">
+    <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop_switch_places.py" output="screen" >
+            <param name="switch_with_id" value="2" />
+    </node>
+    <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
+        <arg name="cf_uri" value="$(arg cf1_uri)" />
+        <arg name="obstacle_manager_id" value="1" />
+        <arg name="collvoid_file" value="$(arg collvoid_file)" />
+        <arg name="cf_pose" value="$(arg cf1_pose)" />
+        <arg name="prefix" value="$(arg cf1_prefix)" />
+        <arg name="wand_topic" default="$(arg wand_topic)" />
+        <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
+    </include>
+    </group>
+
+    <group ns="$(arg cf2_prefix)">
+    <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop_switch_places.py" output="screen" >
+            <param name="switch_with_id" value="1" />
+    </node>
+    <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
+        <arg name="cf_uri" value="$(arg cf2_uri)" />
+        <arg name="obstacle_manager_id" value="2" />
+        <arg name="collvoid_file" value="$(arg collvoid_file)" />
+        <arg name="cf_pose" value="$(arg cf2_pose)" />
+        <arg name="prefix" value="$(arg cf2_prefix)" />
+        <arg name="wand_topic" default="$(arg wand_topic)" />
+        <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
+    </include>
+    </group>
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap_2.rviz" />
+
+  <!-- <node pkg="rqt_plot" type="rqt_plot" name="rqt_plot" args="/crazyflie1/temperature/temperature"/> -->
+
+  <!--node pkg="rqt_plot" type="rqt_plot" name="rqt_plot2" args="/crazyflie1/battery"/-->
+
+</launch>

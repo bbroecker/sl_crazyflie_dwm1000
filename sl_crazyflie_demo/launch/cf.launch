@@ -6,6 +6,7 @@
 <arg name="prefix"/>
 <arg name="collvoid_file"/>
 <arg name="obstacle_manager_id"/>
+<arg name="dwm1000_goal_active" default="False"/>
 <arg name="genome_file"/>
 <arg name="external_cmd_topic" default="external_cmd"/>
 
@@ -61,6 +62,7 @@
 	    <param name="cf_pose_topic" value="$(arg cf_pose)"/>
 	    <param name="pid_tuning_active" value="False"/>
 	    <param name="obstacle_manager_id" value="$(arg obstacle_manager_id)"/>
+	    <param name="collvoid/nn_controller_dwm1000/dwm1000_goal_active" value="$(arg dwm1000_goal_active)"/>
 	    <!--param name="collvoid/Genome_file" value="$(arg genome_file)"/-->
 
     </node>
