@@ -36,9 +36,8 @@
         <arg name="collvoid_file" value="$(arg collvoid_file)" />
         <arg name="cf_pose" value="$(arg cf1_pose)" />
         <arg name="dwm1000_goal_active" value="False" />
-        <!--<arg name="dwm1000_goal_id" value="2" />-->
-        <arg name="dwm1000_obstacle_active" value="False" />
-        <!--<arg name="dwm1000_obstacle_ids" value="[2]" />-->
+        <arg name="dwm1000_obstacle_active" value="True" />
+        <arg name="dwm1000_obstacle_ids" value="[2]" />
         <arg name="dwm_distance_offset" value="0.20" />
         <arg name="prefix" value="$(arg cf1_prefix)" />
         <arg name="wand_topic" default="$(arg wand_topic)" />

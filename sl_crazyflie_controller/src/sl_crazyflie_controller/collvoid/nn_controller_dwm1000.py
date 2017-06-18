@@ -38,9 +38,9 @@ def translate(value, leftMin, leftMax, rightMin, rightMax):
 
 def wrap_angle(angle):
     while angle > np.pi:
-        angle -= 2*np.pi
+        angle -= 2 * np.pi
     while angle < -np.pi:
-        angle += 2*np.pi
+        angle += 2 * np.pi
     return angle
 
 
@@ -104,7 +104,9 @@ class NNMovementWrapper:
 
         predict_angle, self.rrn_states_goal = self.angle_predict_network.predict_angle(self.sess, s,
                                                                                        self.rrn_states_goal)
-        predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
+        # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
+        predict_angle *= np.pi
+        predict_angle = wrap_angle(predict_angle)
         dx = distance * np.cos(predict_angle)
         dy = distance * np.sin(predict_angle)
 
@@ -132,7 +134,9 @@ class NNMovementWrapper:
 
         predict_angle, self.rrn_states_obstacle = self.angle_predict_network.predict_angle(self.sess, s,
                                                                                            self.rrn_states_obstacle)
-        predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
+        # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
+        predict_angle *= np.pi
+        predict_angle = wrap_angle(predict_angle)
         dx = distance * np.cos(predict_angle)
         dy = distance * np.sin(predict_angle)
 
@@ -230,8 +234,14 @@ class NNControllerDWM1000(CollvoidInterface):
         movement_config_file = rospy.get_param("~collvoid/nn_controller_dwm1000/movement_config_file")
         angle_config_file = rospy.get_param("~collvoid/nn_controller_dwm1000/angle_config_file")
         self.dwm_goal_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_active")
+        self.dwm_obstacle_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_obstacle_active")
         if self.dwm_goal_active:
             self.dwm_goal_id = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_id")
+        if self.dwm_obstacle_active:
+            self.dwm_obstacle_ids = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids")
+            # rospy.logerr("obstacle ids {}".format(self.dwm_obstacle_ids[0]))
+        if self.dwm_goal_active or self.dwm1000_active or self.dwm_obstacle_active:
+            self.dwm_distance_offset = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm_distance_offset")
         self.movement_cfg_predict = NNConfigMovement(movement_config_file)
         self.movement_cfg_predict.keep_prob = 1.0
         self.angle_cfg_predict = NNConfigAngle(angle_config_file)
@@ -248,8 +258,9 @@ class NNControllerDWM1000(CollvoidInterface):
         self.pre_goal_angle_pub = rospy.Publisher("pre_goal_angle", PoseStamped)
         self.pre_obs_angle_pub = rospy.Publisher("pre_obstacle_angle", PoseStamped)
         self.dwm_sensor = None
-        if self.dwm1000_active:
-            self.dwm_sensor = DWM10000DistanceSensor(self.my_pose_id, self.timeout)
+        if self.dwm1000_active or self.dwm_goal_active:
+            self.dwm_sensor = DWM10000DistanceSensor(self.my_pose_id, self.timeout, filter_size=1,
+                                                     distance_offset=self.dwm_distance_offset)
 
         self.cmd = ControlCmd()
         self.enabled = False
@@ -344,6 +355,8 @@ class NNControllerDWM1000(CollvoidInterface):
         if (dt >= 1.0 / self.update_rate) and self.goal_pose is not None and g_distance is not None:
             if self.prev_pose is None:
                 self.prev_pose = copy.deepcopy(self.current_pose)
+            vel_x = self.last_velocity.x
+            vel_y = self.last_velocity.y
             self.last_velocity = copy.deepcopy(current_target_velocity)
             if not self.dwm_goal_active:
                 gx = self.goal_pose.pose.position.x - self.current_pose.pose.position.x
@@ -351,11 +364,11 @@ class NNControllerDWM1000(CollvoidInterface):
                 gx, gy = self.rotate_vel(gx, gy, -get_yaw_from_msg(self.current_pose))
                 g_distance = np.sqrt(gx ** 2 + gy ** 2)
 
-            vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
-            vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
-            vel_x, vel_y = self.rotate_vel(vel_x, vel_y, -get_yaw_from_msg(self.current_pose))
-
-            if len(self.current_obstacles) <= 0:
+            # vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
+            # vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
+            # vel_x, vel_y = self.rotate_vel(vel_x, vel_y, -get_yaw_from_msg(self.current_pose))
+            if (not self.dwm_obstacle_active and len(self.current_obstacles) <= 0) or (
+                self.dwm_obstacle_active and self.dwm_sensor.get_closest(self.dwm_obstacle_ids) is None):
                 ox = self.max_sensor_distance * np.cos(0.0)
                 oy = self.max_sensor_distance * np.sin(0.0)
 
@@ -363,16 +376,25 @@ class NNControllerDWM1000(CollvoidInterface):
                 obstacle = self.get_closes_obs()
                 ox = obstacle.x - self.current_pose.pose.position.x
                 oy = obstacle.y - self.current_pose.pose.position.y
-                ox, oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
+                # ox, oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
                 o_distance = np.sqrt(ox ** 2 + oy ** 2)
+                if self.dwm_obstacle_active:
+                    tmp = self.dwm_sensor.get_closest(self.dwm_obstacle_ids)
+                    if tmp is not None:
+                        o_distance = tmp
+                    else:
+                        rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
+                else:
+                    print "dwm obstacle not active"
                 ox, oy, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
-                                                             o_distance, dt)
+                                                               o_distance, dt)
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
 
             # real_angle = math.atan2(gy, gx)
             # real_angle_translate = translate(real_angle, -np.pi, np.pi, -1.0, 1.0)
-            # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
-            gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
+            gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
+            # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
+            # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             angle_trans = translate(angle, -np.pi, np.pi, -1.0, 1.0)
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
             # self.publish_predict_angle(self.pre_goal_angle_pub, real_angle)
