@@ -2,7 +2,8 @@
 
 <launch>
   <arg name="cf1_uri" default="radio://0/80/2M" />
-  <arg name="cf2_uri" default="radio://0/10/1M" />
+  <arg name="cf2_uri" default="radio://0/10/2M" />
+  <!--<arg name="cf2_uri" default="radio://0/10/1M" />-->
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
   <arg name="cf2_prefix" default="crazyflie2" />

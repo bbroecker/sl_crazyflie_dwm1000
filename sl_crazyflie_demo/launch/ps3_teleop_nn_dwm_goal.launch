@@ -22,10 +22,10 @@
       <rosparam param="cf_name_spaces">["/crazyflie1"]</rosparam>
   </node>
    <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
-      <!--<rosparam param="ids">[1]</rosparam>-->
-      <rosparam param="ids">[1, 2]</rosparam>
-      <!--<rosparam param="pose_topics">["/Robot_1/pose"]</rosparam>-->
-      <rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>
+      <rosparam param="ids">[1]</rosparam>
+      <!--<rosparam param="ids">[1, 2]</rosparam>-->
+      <rosparam param="pose_topics">["/Robot_1/pose"]</rosparam>
+      <!--<rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>-->
   </node>
    <group ns="$(arg cf1_prefix)">
     <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop.py" output="screen" >

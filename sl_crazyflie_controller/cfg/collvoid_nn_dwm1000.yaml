@@ -17,7 +17,7 @@ collvoid:
     max_xy_goal_vel: 0.3
     error_factor: 1.7
   nn_controller_dwm1000:
-    dwm1000_active: True
+    dwm1000_active: False
 #    dwm1000_active: True
     dwm_timeout: 1.0
     avg_buffer_size: 1
