@@ -21,9 +21,13 @@ collvoid:
 #    dwm1000_active: True
     dwm_timeout: 1.0
     avg_buffer_size: 1
+#    movement_config_file: "/home/broecker/src/cf_nn_weights/dqn/next_neighbour3/nn_config_training1.yaml"
 #    movement_config_file: "/home/broecker/src/cf_nn_weights/dqn/next_neighbour2/nn_config_training1.yaml"
     movement_config_file: "/home/broecker/src/cf_nn_weights/dqn/next_neighbour4/nn_config_training1.yaml"
-    angle_config_file: "/home/broecker/src/cf_nn_weights/rrn_dynamic/predict_angle/angle_180_1/nn_config.yaml"
+#    movement_config_file: "/home/broecker/src/cf_nn_weights/dqn/next_neighbour1/nn_config.yaml"
+    angle_config_file: "/home/broecker/src/cf_nn_weights/rrn_dynamic/predict_angle/angle_180_9_0_87_noise_0_6/nn_config_test1.yaml"
+#    angle_config_file: "/home/broecker/src/cf_nn_weights/rrn_dynamic/predict_angle/angle_180_8_0_91_noise_0_3/nn_config_test1.yaml"
+#    angle_config_file: "/home/broecker/src/cf_nn_weights/rrn_dynamic/predict_angle/angle_180_7/nn_config_test1.yaml"
 #    angle_config_file: "/home/broecker/src/cf_nn_weights/rrn_dynamic/predict_angle/angle2/nn_config.yaml"
 #
 #    config_file: "/home/broecker/src/ros/swarm_avoid_ws/src/tf_nn_sim/src/tf_nn_sim/Config/NeuralNetwork/nn_config.yaml"

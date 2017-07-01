@@ -9,6 +9,7 @@
 <arg name="dwm1000_goal_active" default="False"/>
 <arg name="dwm1000_goal_id" default="1"/>
 <arg name="dwm1000_obstacle_active" default="False" />
+<arg name="deactivate_angle_network" default="False" />
 <arg name="dwm1000_obstacle_ids" default="[]" />
 
 <arg name="dwm_distance_offset" default="0.0"/>
@@ -71,6 +72,7 @@
 	    <param name="collvoid/nn_controller_dwm1000/dwm1000_goal_active" value="$(arg dwm1000_goal_active)"/>
 	    <param name="collvoid/nn_controller_dwm1000/dwm1000_obstacle_active" value="$(arg dwm1000_obstacle_active)"/>
 	    <param name="collvoid/nn_controller_dwm1000/dwm1000_goal_id" value="$(arg dwm1000_goal_id)"/>
+	    <param name="collvoid/nn_controller_dwm1000/deactivate_angle_network" value="$(arg deactivate_angle_network)"/>
 	    <!--<param name="collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids" value="$(arg dwm1000_obstacle_ids)"/>-->
         <rosparam param="collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids" subst_value="true">$(arg dwm1000_obstacle_ids)</rosparam>
 	    <param name="collvoid/nn_controller_dwm1000/dwm_distance_offset" value="$(arg dwm_distance_offset)"/>

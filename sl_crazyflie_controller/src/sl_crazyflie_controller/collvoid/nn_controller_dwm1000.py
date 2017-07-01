@@ -22,7 +22,8 @@ from tf_nn_sim.networks.rnn_dynamic import RRNDynamicModel
 
 NUM_ACTIONS = 9
 import collections
-
+NN_GOAL_DISTANCE_OFFSET = 0.35
+# NN_GOAL_DISTANCE_OFFSET = 0.0
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
     # Figure out how 'wide' each range is
@@ -148,7 +149,8 @@ class NNMovementWrapper:
         self.rrn_states_obstacle = self.angle_predict_network.gen_init_state(self.sess, 1)
         self.rrn_states_goal = self.angle_predict_network.gen_init_state(self.sess, 1)
 
-    def best_velocity(self, v_x, v_y, goal_dx, goal_dy, obstacle_dx, obstacle_dy, delta_time):
+    #goal offset = hack for nn, think it far away but it's not
+    def best_velocity(self, v_x, v_y, goal_dx, goal_dy, obstacle_dx, obstacle_dy, delta_time, goal_distance_offset = 0):
         g_dx = self.network_movement.translate(goal_dx, -self.movement_cfg.max_sensor_distance,
                                                self.movement_cfg.max_sensor_distance,
                                                self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
@@ -183,7 +185,7 @@ class NNMovementWrapper:
 
         accel = self.movement_cfg.acceleration * delta_time
         diagonal = np.sqrt((accel ** 2) / 2.0)
-        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) < 0.15 and np.sqrt(obstacle_dx ** 2 + obstacle_dy ** 2) > 0.4:
+        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) - goal_distance_offset < 0.15 and np.sqrt(obstacle_dx ** 2 + obstacle_dy ** 2) > 0.4:
             self.target_goal_vel.x = 0.0
             self.target_goal_vel.y = 0.0
         else:
@@ -235,6 +237,7 @@ class NNControllerDWM1000(CollvoidInterface):
         angle_config_file = rospy.get_param("~collvoid/nn_controller_dwm1000/angle_config_file")
         self.dwm_goal_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_active")
         self.dwm_obstacle_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_obstacle_active")
+        self.deactivate_angle_network = rospy.get_param("~collvoid/nn_controller_dwm1000/deactivate_angle_network", False)
         if self.dwm_goal_active:
             self.dwm_goal_id = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_id")
         if self.dwm_obstacle_active:
@@ -363,6 +366,7 @@ class NNControllerDWM1000(CollvoidInterface):
                 gy = self.goal_pose.pose.position.y - self.current_pose.pose.position.y
                 gx, gy = self.rotate_vel(gx, gy, -get_yaw_from_msg(self.current_pose))
                 g_distance = np.sqrt(gx ** 2 + gy ** 2)
+                g_distance += NN_GOAL_DISTANCE_OFFSET
 
             # vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
             # vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
@@ -385,28 +389,38 @@ class NNControllerDWM1000(CollvoidInterface):
                     else:
                         rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
                 else:
-                    print "dwm obstacle not active"
-                ox, oy, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
+                    print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
+                if self.deactivate_angle_network:
+                    ox_, oy_, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
                                                                o_distance, dt)
+                else:
+                    ox, oy, angle = self.nn.get_new_obstacle_state(vel_x, vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
+                                                               o_distance, dt)
+
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
 
             # real_angle = math.atan2(gy, gx)
             # real_angle_translate = translate(real_angle, -np.pi, np.pi, -1.0, 1.0)
-            gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
+            if self.deactivate_angle_network:
+                gx_, gy_, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
+            else:
+                gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, dt)
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             angle_trans = translate(angle, -np.pi, np.pi, -1.0, 1.0)
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
             # self.publish_predict_angle(self.pre_goal_angle_pub, real_angle)
             # print "real_angle: {} pre angle: {}".format(real_angle, angle_trans)
-            # self.accuracy_list.append((2.0 - abs(real_angle_translate - angle_trans)) / 2.0)
-            # # print dt
+            # er = (((real_angle_translate - angle_trans) + 1.0) % 2.0) - 1.0
+            # accuracy_list.append((1.0 - abs(er)) / 1.0)
+            # self.accuracy_list.append((1.0 - abs(er)) / 1.0)
+            # print dt
             # if len(self.accuracy_list) > int(1.0 / dt) * 5.0:
             #     a = sum(self.accuracy_list) / len(self.accuracy_list)
-            #     error = (((a * 2.0) - 2.0) * -1.0) * 180.0
+            #     error = (((a * 1.0) - 1.0) * -1.0) * 180.0
             #     print "accuracy: {} avg_error: {}".format(a, error)
             #     self.accuracy_list = []
-            tmp = self.nn.best_velocity(vel_x, vel_y, gx, gy, ox, oy, dt)
+            tmp = self.nn.best_velocity(vel_x, vel_y, gx, gy, ox, oy, dt, goal_distance_offset=NN_GOAL_DISTANCE_OFFSET)
             # print "prev x: {0} y: {1} after {2} {3} {4}".format(self.last_velocity.x, self.last_velocity.y, tmp.x, tmp.y, self.max_velocity)
             self.last_velocity.x = 0
             self.last_velocity.y = 0
