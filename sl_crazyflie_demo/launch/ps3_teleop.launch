@@ -4,10 +4,10 @@
   <arg name="cf1_uri" default="radio://0/80/2M" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
-  <arg name="wand_topic" default="/Robot_2/pose" />
+  <arg name="wand_topic" default="/Robot_3/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />
-  <arg name="wand_frame_id" default="/Robot_2/base_link" />
-  <arg name="collvoid_file" default="collvoid_basic.yaml" />
+  <arg name="wand_frame_id" default="/Robot_3/base_link" />
+  <arg name="collvoid_file" default="no_collvoid.yaml" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
@@ -20,8 +20,8 @@
       <rosparam param="cf_name_spaces">["/crazyflie1"]</rosparam>
   </node>
    <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
-      <rosparam param="ids">[1, 3]</rosparam>
-      <rosparam param="pose_topics">["/Robot_1/pose", /Robot_3/pose]</rosparam>
+      <rosparam param="ids">[1, 2]</rosparam>
+      <rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
     <include file="$(find sl_crazyflie_demo)/launch/cf.launch">

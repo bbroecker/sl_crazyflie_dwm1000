@@ -11,6 +11,7 @@
 <arg name="dwm1000_obstacle_active" default="False" />
 <arg name="deactivate_angle_network" default="False" />
 <arg name="dwm1000_obstacle_ids" default="[]" />
+<arg name="wand_offset" default="0.5" />
 
 <arg name="dwm_distance_offset" default="0.0"/>
 <arg name="genome_file"/>
@@ -55,7 +56,7 @@
     <node name="follow_pose" pkg="sl_crazyflie_controller" type="pose_follower.py" output="screen" >
       <param name="pose_topic" value="$(arg wand_topic)" />
       <param name="pose_frame_id" value="$(arg wand_frame_id)" />
-      <param name="z_offset" value="0.5" />
+      <param name="z_offset" value="$(arg wand_offset)"/>
     </node>
 
 

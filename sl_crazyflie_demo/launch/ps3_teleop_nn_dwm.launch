@@ -9,7 +9,7 @@
   <arg name="cf1_pose" default="/Robot_1/pose" />
   <!--<arg name="cf1_pose" default="/Robot_2/pose" />-->
   <arg name="wand_frame_id" default="/Robot_2/base_link" />
-  <arg name="collvoid_file" default="collvoid_nn_dwm1000.yaml" />
+  <arg name="collvoid_file" default="collvoid_nn_dwm1000_discrete.yaml" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
@@ -22,10 +22,10 @@
       <rosparam param="cf_name_spaces">["/crazyflie1"]</rosparam>
   </node>
    <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
-      <rosparam param="ids">[1]</rosparam>
-      <!--<rosparam param="ids">[1, 2]</rosparam>-->
-      <rosparam param="pose_topics">["/Robot_1/pose"]</rosparam>
-      <!--<rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>-->
+      <!--<rosparam param="ids">[1]</rosparam>-->
+      <rosparam param="ids">[1, 2]</rosparam>
+      <!--<rosparam param="pose_topics">["/Robot_1/pose"]</rosparam>-->
+      <rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>
   </node>
    <group ns="$(arg cf1_prefix)">
     <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop.py" output="screen" >

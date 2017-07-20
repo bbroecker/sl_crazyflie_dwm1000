@@ -1,7 +1,7 @@
 collvoid:
   controllers:
-    - geofencing_node
-    - simple_collvoid
+   # - geofencing_node
+   # - simple_collvoid
   geofencing:
     min_x: -1.60
     min_y: -2.1

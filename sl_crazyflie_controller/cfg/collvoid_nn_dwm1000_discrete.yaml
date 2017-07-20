@@ -1,0 +1,25 @@
+collvoid:
+  controllers:
+#    - geofencing_node
+#    - simple_collvoid
+    - nn_controller_dwm1000_discrete
+  geofencing:
+    min_x: -1.60
+    min_y: -2.1
+    max_x: 2.3
+    max_y: 1.5
+    recover_speed: 0.3
+    buffer_len: 0.05
+  simple_collvoid:
+    min_xy_dist: 0.17
+    max_xy_dist: 0.30
+    max_xy_avoid_vel: 0.4
+    max_xy_goal_vel: 0.3
+    error_factor: 1.7
+  nn_controller_dwm1000:
+    dwm1000_active: False
+#    dwm1000_active: True
+    dwm_timeout: 1.0
+    avg_buffer_size: 1
+    movement_config_file: "/home/broecker/src/cf_nn_weights/v2/movement/drqn_1/nn_config_drqn.yaml"
+    angle_config_file: "/home/broecker/src/cf_nn_weights/v2/angle_discrete/rnn_2/nn_config.yaml"
