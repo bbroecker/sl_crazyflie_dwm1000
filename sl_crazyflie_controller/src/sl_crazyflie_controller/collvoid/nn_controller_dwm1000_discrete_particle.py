@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import copy
 import math
+from time import sleep
 
 import rospy
-from geometry_msgs.msg import PoseStamped, PoseArray
+from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 from sl_crazyflie_msgs.msg import Velocity, Obstacle
 from std_srvs.srv import Empty, EmptyResponse
 from tf import transformations
@@ -21,7 +22,7 @@ from tf_nn_sim.networks.rrn_cnn import GeneralRRNDiscreteModel
 from tf_nn_sim.networks.rrn_cnn_multitask_join import GeneralRRNDiscreteModelMultitaskJointLoss
 from tf_nn_sim.networks.rrn_dqn import DQN_RNN
 from tf_nn_sim.v2.particle_filter.particle_filter_nn import ParticleFilterNN, ParticleFilter2_5D_Cfg
-
+import threading
 NUM_ACTIONS = 10
 import collections
 NN_GOAL_DISTANCE_OFFSET = 0.0
@@ -101,6 +102,8 @@ class NNMovementWrapper:
         movement_cfg.batch_size = 1
         movement_cfg.keep_prob = 1.0
         self.target_goal_vel = Velocity()
+        self.first_call = False
+
 
         self.graph = tf.Graph().as_default()
         initializer_movement = tf.random_normal_initializer(stddev=movement_cfg.init_scale)
@@ -137,6 +140,7 @@ class NNMovementWrapper:
         self.rnn_movement_state = self.network_movement.gen_init_state(self.sess, 1)
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt):
+        # print my_vx, my_vy
         my_vx = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                      self.angle_cfg.max_x)
         my_vy = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
@@ -145,7 +149,7 @@ class NNMovementWrapper:
         s = [my_vx, my_vy, 0.0, 0.0, dist_norm, dt]
         # print "my_vel: {} my_angle: {} distance: {} dt: {}".format(velocity, velocity_angle, distance, dt)
 
-        predict_angle, predict_orientation, self.rrn_states_goal = self.angle_predict_network.predict_angle(self.sess, s,
+        predict_angle, predict_orientation, self.rrn_states_goal = self.angle_predict_network.predict_angle_orientation(self.sess, s,
                                                                                        self.rrn_states_goal)
         # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
         predict_angle = self.discrete_to_angle(predict_angle)
@@ -159,6 +163,7 @@ class NNMovementWrapper:
         self.particles_goal.update_samples(my_vx, my_vy, 0.0, 0.0, dt, distance, dx, dy, predict_orientation)
 
         dx, dy, yaw = self.particles_goal.local_pose()
+        predict_angle = np.arctan2(dy, dx)
 
         # return [velocity, velocity_angle, 0.0, 0.0, goal_distance, 1.0 / self.update_rate]
         return dx, dy, predict_angle
@@ -229,6 +234,7 @@ class NNMovementWrapper:
                                      self.movement_cfg.max_state_out)
 
         s = [v_x, v_y, g_dx, g_dy, o_dx, o_dy, update_tick]
+        # print s
         action = None
         if np.random.rand(1) < self.movement_cfg.epsilon:
             action = np.random.randint(0, NUM_ACTIONS)
@@ -287,7 +293,7 @@ class NNMovementWrapper:
         result_vel = copy.deepcopy(vel)
         norm = math.sqrt(vel.x ** 2 + vel.y ** 2)
         if norm > max_velocity:
-            print "is faster ", norm, max_velocity
+            # print "is faster ", norm, max_velocity
             result_vel.x /= norm
             result_vel.x *= max_velocity
             result_vel.y /= norm
@@ -338,9 +344,9 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                                                      distance_offset=self.dwm_distance_offset)
 
         self.cmd = ControlCmd()
-        self.vel_x = self.vel_y = self.gx = self.gy = self.ox = self.oy = self.dt = None
+        self.vel_x = self.vel_y = self.gx = self.gy = self.ox = self.oy = None
         self.enabled = False
-        self.first_call = False
+        self.last_update_thread = None
         self.last_update = None
         self.active = False
         self.last_velocity = None
@@ -350,6 +356,16 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         self.current_obstacles = []
         self.last_pose_dict = {}
         self.avg_buffer = collections.deque(maxlen=self.avg_buffer_size)
+        self.thread = threading.Thread(target=self.update_thread)
+        self.thread.start()
+
+    def update_thread(self):
+        r = rospy.Rate(100)
+        while not rospy.is_shutdown():
+            if self.current_pose is None:
+                continue
+            self.update_predictions()
+            r.sleep()
 
     def goal_pose_callback(self, pose):
         self.goal_pose = pose
@@ -371,7 +387,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
     def start_callback(self, req):
         print "start_callback"
         self.enabled = True
-        self.first_call = True
+        self.nn.first_call = True
         # if self.goal_pose is None:
         #     self.goal_pose = copy.deepcopy(self.current_pose)
         #     print "goal_pose", self.goal_pose
@@ -381,9 +397,9 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
     def stop_callback(self, req):
         print "stop_callback"
         self.enabled = False
-        self.goal_pose = None
-        self.last_update = None
-        self.first_call = False
+        # self.goal_pose = None
+        self.last_update_thread = None
+        self.nn.first_call = False
         self.avg_buffer = collections.deque(maxlen=self.avg_buffer_size)
         self.nn.reset()
         return EmptyResponse()
@@ -418,10 +434,11 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
 
 
     def update_predictions(self):
-        if self.last_update is None:
-            self.dt = 1.0 / self.update_rate
+        start = rospy.Time.now()
+        if self.last_update_thread is None:
+            dt = 1.0 / self.update_rate
         else:
-            self.dt = (rospy.Time.now() - self.last_update).to_sec()
+            dt = (rospy.Time.now() - self.last_update_thread).to_sec()
 
         # print "nn incoming {0}".format(current_target_velocity.z)
         g_distance = 3.0
@@ -429,7 +446,10 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             g_distance = self.dwm_sensor.get_distance(self.dwm_goal_id)
             if g_distance is None:
                 rospy.logwarn("DWM has no distance!!!")
-        if (self.dt >= 1.0 / self.update_rate) and self.goal_pose is not None and g_distance is not None:
+        if self.goal_pose is None:
+            self.goal_pose = PoseStamped()
+            self.goal_pose.header.stamp = rospy.Time.now()
+        if (dt >= 1.0 / self.update_rate) and self.goal_pose is not None and g_distance is not None:
             if self.prev_pose is None:
                 self.prev_pose = copy.deepcopy(self.current_pose)
             # vel_x = self.last_velocity.x
@@ -441,8 +461,8 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                 g_distance = np.sqrt(gx ** 2 + gy ** 2)
                 g_distance += NN_GOAL_DISTANCE_OFFSET
 
-            self.vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / self.dt
-            self.vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / self.dt
+            self.vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
+            self.vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
             self.vel_x, self.vel_y = self.rotate_vel(self.vel_x, self.vel_y, -get_yaw_from_msg(self.current_pose))
             if (not self.dwm_obstacle_active and len(self.current_obstacles) <= 0) or (
                 self.dwm_obstacle_active and self.dwm_sensor.get_closest(self.dwm_obstacle_ids) is None):
@@ -462,30 +482,44 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                         o_distance = tmp
                     else:
                         rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
-                else:
-                    print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
+                # else:
+                #     print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
                 if self.deactivate_angle_network:
                     print "Angle network NOT ACTIVE!!!"
                     ox_, oy_, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
-                                                               o_distance, self.dt)
+                                                               o_distance, dt)
                 else:
                     self.ox, self.oy, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
-                                                               o_distance, self.dt)
+                                                               o_distance, dt)
 
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
 
             # real_angle = math.atan2(gy, gx)
             # real_angle_translate = translate(real_angle, -np.pi, np.pi, -1.0, 1.0)
             if self.deactivate_angle_network:
-                gx_, gy_, angle = self.nn.get_new_goal_state(self.vel_x, self.vel_y, g_distance, self.dt)
+                gx_, gy_, angle = self.nn.get_new_goal_state(self.vel_x, self.vel_y, g_distance, dt)
             else:
-                self.gx, self.gy, angle = self.nn.get_new_goal_state(self.vel_x, self.vel_y, g_distance, self.dt)
+                self.gx, self.gy, angle = self.nn.get_new_goal_state(self.vel_x, self.vel_y, g_distance, dt)
+
+            self.publish_goal_particles()
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             angle_trans = translate(angle, -np.pi, np.pi, -1.0, 1.0)
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
+            self.last_update_thread = rospy.Time.now()
+            self.prev_pose = copy.deepcopy(self.current_pose)
 
+        # print (rospy.Time.now() - start).to_sec()
 
+    def publish_goal_particles(self):
+        pose_array = PoseArray()
+        pose_array.header.frame_id = "/Robot_1/base_link"
+        for p in self.nn.particles_goal.samples:
+            pose = Pose()
+            pose.position.x = p.x
+            pose.position.y = p.y
+            pose_array.poses.append(pose)
+        self.pre_goal_particle_pub.publish(pose_array)
 
     # calculates the new target velocity based on the collvoid scheme
     # target_Velocity is the current target velocity towards the goal
@@ -494,7 +528,16 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             g_distance = self.dwm_sensor.get_distance(self.dwm_goal_id)
             if g_distance is None:
                 rospy.logwarn("DWM has no distance!!!")
-        if (self.dt >= 1.0 / self.update_rate) and self.goal_pose is not None and g_distance is not None:
+        if self.last_velocity is None:
+            self.last_velocity = copy.deepcopy(current_target_velocity)
+        if self.last_update is None:
+            dt = 1.0 / self.update_rate
+        else:
+            dt = (rospy.Time.now() - self.last_update).to_sec()
+
+        if dt >= 1.0 / self.update_rate:
+            vel_x = self.last_velocity.x
+            vel_y = self.last_velocity.y
             self.last_velocity = copy.deepcopy(current_target_velocity)
             # self.publish_predict_angle(self.pre_goal_angle_pub, real_angle)
             # print "real_angle: {} pre angle: {}".format(real_angle, angle_trans)
@@ -507,8 +550,14 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             #     error = (((a * 1.0) - 1.0) * -1.0) * 180.0
             #     print "accuracy: {} avg_error: {}".format(a, error)
             #     self.accuracy_list = []
-            tmp = self.nn.best_velocity(self.vel_x, self.vel_y, self.gx, self.gy, self.ox, self.oy, self.dt, goal_distance_offset=NN_GOAL_DISTANCE_OFFSET)
+            if self.ox is None:
+                print "OX CRAP", self.vel_x, self.vel_y, self.gx, self.gy, self.ox, self.oy, dt
+                self.ox = self.max_sensor_distance * np.cos(0.0)
+                self.oy = self.max_sensor_distance * np.sin(0.0)
+            # print vel_y, vel_y
+            tmp = self.nn.best_velocity(self.vel_x, self.vel_y, self.gx, self.gy, self.ox, self.oy, dt, goal_distance_offset=NN_GOAL_DISTANCE_OFFSET)
             # print "prev x: {0} y: {1} after {2} {3} {4}".format(self.last_velocity.x, self.last_velocity.y, tmp.x, tmp.y, self.max_velocity)
+
             self.last_velocity.x = 0
             self.last_velocity.y = 0
             self.avg_buffer.append(tmp)
@@ -516,10 +565,10 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             for v in self.avg_buffer:
                 self.last_velocity.x += v.x / b_size
                 self.last_velocity.y += v.y / b_size
-            self.prev_pose = copy.deepcopy(self.current_pose)
+            self.nn.first_call = False
             self.last_update = rospy.Time.now()
-            self.first_call = False
 
+        # print self.last_velocity
         return self.last_velocity
 
     def publish_predict_angle(self, publisher, angle):
@@ -565,5 +614,5 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
 
     # tells the main controller if this bahaviour is active
     def is_active(self):
-        self.update_predictions()
+        # self.update_predictions()
         return self.enabled
