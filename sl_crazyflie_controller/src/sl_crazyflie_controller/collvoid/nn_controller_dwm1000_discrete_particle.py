@@ -31,34 +31,36 @@ NN_GOAL_DISTANCE_OFFSET = 0.0
 class ObstacleCfg(ParticleFilter2_5D_Cfg):
     def __init__(self):
         super(ObstacleCfg, self).__init__()
-        self.sample_size = 30
-        self.x_limit = [-2.0, 2.0]
-        self.resample_x_limit = [-0.01, 0.01]
-        self.y_limit = [-2.0, 2.0]
-        self.resample_y_limit = [-0.01, 0.01]
-        self.yaw_limit = [-np.pi, np.pi]
-        self.resample_yaw_limit = [-np.pi*0.01, np.pi*0.01]
-        self.respawn_yaw_limit = [-np.pi*0.1, np.pi*0.1]
-        self.respawn_y_limit = [-0.01, 0.01]
-        self.respawn_x_limit = [-0.01, 0.01]
-        self.new_spawn_samples = 0.1
-        self.resample_prob = 0.9
-
-class GoalCfg(ParticleFilter2_5D_Cfg):
-    def __init__(self):
-        super(GoalCfg, self).__init__()
-        self.sample_size = 30
+        self.sample_size = 50
         self.x_limit = [-2.0, 2.0]
         self.resample_x_limit = [-0.1, 0.1]
         self.y_limit = [-2.0, 2.0]
         self.resample_y_limit = [-0.1, 0.1]
         self.yaw_limit = [-np.pi, np.pi]
-        self.resample_yaw_limit = [-np.pi*0.01, np.pi*0.01]
-        self.respawn_yaw_limit = [-np.pi*0.1, np.pi*0.1]
+        self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+        self.respawn_yaw_limit = [-np.pi * 0.01, np.pi * 0.01]
         self.respawn_y_limit = [-0.1, 0.1]
         self.respawn_x_limit = [-0.1, 0.1]
-        self.new_spawn_samples = 0.05
+        self.new_spawn_samples = 0.1
         self.resample_prob = 0.95
+
+class GoalCfg(ParticleFilter2_5D_Cfg):
+    def __init__(self):
+        super(GoalCfg, self).__init__()
+        self.sample_size = 10
+        self.x_limit = [-2.0, 2.0]
+        self.resample_x_limit = [-0.1, 0.1]
+        self.y_limit = [-2.0, 2.0]
+        self.resample_y_limit = [-0.1, 0.1]
+        self.yaw_limit = [-np.pi, np.pi]
+        self.resample_yaw_limit = [-np.pi*0.1, np.pi*0.1]
+        self.respawn_yaw_limit = [-np.pi*0.1, np.pi*0.1]
+        self.respawn_y_limit = [-0.01, 0.01]
+        self.respawn_x_limit = [-0.01, 0.01]
+        self.new_spawn_samples = 0.10
+        self.resample_prob = 0.90
+        self.variance = 0.0312979988458
+        # self.variance = 0.3
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
     # Figure out how 'wide' each range is
@@ -141,32 +143,35 @@ class NNMovementWrapper:
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt):
         # print my_vx, my_vy
-        my_vx = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
+        my_vx_t = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                      self.angle_cfg.max_x)
-        my_vy = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
+        my_vy_t = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
         dist_norm = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x,
                               self.angle_cfg.max_x)
-        s = [my_vx, my_vy, 0.0, 0.0, dist_norm, dt]
+        s = [my_vx_t, my_vy_t, 0.0, 0.0, dist_norm, dt]
         # print "my_vel: {} my_angle: {} distance: {} dt: {}".format(velocity, velocity_angle, distance, dt)
 
         predict_angle, predict_orientation, self.rrn_states_goal = self.angle_predict_network.predict_angle_orientation(self.sess, s,
                                                                                        self.rrn_states_goal)
         # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
-        predict_angle = self.discrete_to_angle(predict_angle)
-        predict_orientation = self.discrete_to_angle(predict_orientation)
+        predict_angle = self.discrete_to_angle(predict_angle[0])
+        predict_orientation = self.discrete_to_angle(predict_orientation[0])
         dx = distance * np.cos(predict_angle)
         dy = distance * np.sin(predict_angle)
 
         if self.first_call:
+            print "RESET GOAL?"
             self.particles_obs.reset(dx, dy, predict_orientation)
 
         self.particles_goal.update_samples(my_vx, my_vy, 0.0, 0.0, dt, distance, dx, dy, predict_orientation)
 
-        dx, dy, yaw = self.particles_goal.local_pose()
-        predict_angle = np.arctan2(dy, dx)
+        x, y, yaw = self.particles_goal.local_pose()
+        predict_angle = np.arctan2(y, x)
 
         # return [velocity, velocity_angle, 0.0, 0.0, goal_distance, 1.0 / self.update_rate]
-        return dx, dy, predict_angle
+        # print "nn: x: {} y {} , other x: {} y: {}".format(dx, dy, x, y)
+        # return dx, dy, predict_angle
+        return x, y, predict_angle
 
     def discrete_to_angle(self, discrete_angle):
         range_size = 2 * np.pi
@@ -174,37 +179,40 @@ class NNMovementWrapper:
         return step_size * discrete_angle - np.pi
 
     def get_new_obstacle_state(self, my_vx, my_vy, o_vx, o_vy, distance, dt):
-        my_vx = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
+        my_vx_t = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                      self.angle_cfg.max_x)
-        my_vy = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
+        my_vy_t = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
 
-        o_vx = translate(o_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
+        o_vx_t = translate(o_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
                                    self.angle_cfg.max_x)
-        o_vy = translate(o_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
+        o_vy_t = translate(o_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
 
         dist = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x, self.angle_cfg.max_x)
-        s = [my_vx, my_vy, o_vx, o_vy, dist, dt]
+        s = [my_vx_t, my_vy_t, o_vx_t, o_vy_t, dist, dt]
         # print "my_vel: {} my_angle: {} distance: {} dt: {} | o_vel {} o_angel".format(my_velocity, my_velocity_angle,
         #                                                                               distance, dt, other_vel,
         #                                                                               other_vel_angle)
 
         predict_angle, predict_orientation, self.rrn_states_obstacle = self.angle_predict_network.predict_angle_orientation(self.sess, s,
                                                                                            self.rrn_states_obstacle)
-        predict_angle = self.discrete_to_angle(predict_angle)
-        predict_orientation = self.discrete_to_angle(predict_orientation)
+        predict_angle = self.discrete_to_angle(predict_angle[0])
+        predict_orientation = self.discrete_to_angle(predict_orientation[0])
         # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
         # predict_angle = wrap_angle(predict_angle)
         dx = distance * np.cos(predict_angle)
         dy = distance * np.sin(predict_angle)
         if self.first_call:
+            print "RESET?"
             self.particles_obs.reset(dx, dy, predict_orientation)
 
+        # print o_vx, o_vy
         self.particles_obs.update_samples(my_vx, my_vy, o_vx, o_vy, dt, distance, dx, dy, predict_orientation)
 
-        dx, dy, yaw = self.particles_obs.local_pose()
+        x, y, yaw = self.particles_obs.local_pose()
+        # predict_angle = np.arctan2(y, x)
 
         # return [velocity, velocity_angle, 0.0, 0.0, goal_distance, 1.0 / self.update_rate]
-        return dx, dy, predict_angle
+        return x, y, predict_angle
 
     def reset(self):
         self.target_goal_vel = Velocity()
@@ -312,6 +320,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         angle_config_file = rospy.get_param("~collvoid/nn_controller_dwm1000/angle_config_file")
         self.dwm_goal_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_active")
         self.dwm_obstacle_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_obstacle_active")
+        self.cf_frame_id = rospy.get_param("~collvoid/nn_controller_dwm1000/cf_frame_id")
         self.deactivate_angle_network = rospy.get_param("~collvoid/nn_controller_dwm1000/deactivate_angle_network", False)
         if self.dwm_goal_active:
             self.dwm_goal_id = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_id")
@@ -374,10 +383,14 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         if obs.id is not self.my_pose_id:
             assert isinstance(obs, Obstacle)
             ot = ObstacleTime(obs, rospy.Time.now())
+            # if obs.id == 2:
+            #     print "controller x: {} y: {}".format(obs.x_vel_local, obs.y_vel_local)
             self.last_pose_dict[obs.id] = ot
 
     def update_cf_pose(self, pose):
         self.current_pose = pose
+
+    def update_obstacles(self):
         self.current_obstacles = []
         for key, value in self.last_pose_dict.iteritems():
             assert isinstance(value, ObstacleTime)
@@ -441,9 +454,11 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             dt = (rospy.Time.now() - self.last_update_thread).to_sec()
 
         # print "nn incoming {0}".format(current_target_velocity.z)
+        self.update_obstacles()
         g_distance = 3.0
         if self.dwm_goal_active:
             g_distance = self.dwm_sensor.get_distance(self.dwm_goal_id)
+            # print "dwm active"
             if g_distance is None:
                 rospy.logwarn("DWM has no distance!!!")
         if self.goal_pose is None:
@@ -463,12 +478,14 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
 
             self.vel_x = (self.current_pose.pose.position.x - self.prev_pose.pose.position.x) / dt
             self.vel_y = (self.current_pose.pose.position.y - self.prev_pose.pose.position.y) / dt
+            # d = np.sqrt((self.vel_x * dt) ** 2 + (self.vel_y * dt) ** 2)
+            # print "main distance: {}".format(d)
             self.vel_x, self.vel_y = self.rotate_vel(self.vel_x, self.vel_y, -get_yaw_from_msg(self.current_pose))
             if (not self.dwm_obstacle_active and len(self.current_obstacles) <= 0) or (
                 self.dwm_obstacle_active and self.dwm_sensor.get_closest(self.dwm_obstacle_ids) is None):
                 self.ox = self.max_sensor_distance * np.cos(0.0)
                 self.oy = self.max_sensor_distance * np.sin(0.0)
-                print "IGNORE OBSTACLES"
+                # print "IGNORE OBSTACLES"
 
             else:
                 obstacle = self.get_closes_obs()
@@ -501,7 +518,13 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             else:
                 self.gx, self.gy, angle = self.nn.get_new_goal_state(self.vel_x, self.vel_y, g_distance, dt)
 
+            # if self.my_pose_id == 1:
+            #     if abs(round(obstacle.x_vel_local, 2)) > abs(round(obstacle.y_vel_local,2)):
+            #         print "x axis"
+            #     else:
+            #         print "y axis"
             self.publish_goal_particles()
+            self.publish_obs_particles()
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             # gx, gy, angle = self.nn.get_new_goal_state(vel_x, vel_y, g_distance, 1.0 / self.update_rate)
             angle_trans = translate(angle, -np.pi, np.pi, -1.0, 1.0)
@@ -513,13 +536,25 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
 
     def publish_goal_particles(self):
         pose_array = PoseArray()
-        pose_array.header.frame_id = "/Robot_1/base_link"
+        pose_array.header.frame_id = self.cf_frame_id
         for p in self.nn.particles_goal.samples:
             pose = Pose()
             pose.position.x = p.x
             pose.position.y = p.y
+            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternon_from_yaw(p.yaw)
             pose_array.poses.append(pose)
         self.pre_goal_particle_pub.publish(pose_array)
+
+    def publish_obs_particles(self):
+        pose_array = PoseArray()
+        pose_array.header.frame_id = self.cf_frame_id
+        for p in self.nn.particles_obs.samples:
+            pose = Pose()
+            pose.position.x = p.x
+            pose.position.y = p.y
+            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternon_from_yaw(p.yaw)
+            pose_array.poses.append(pose)
+        self.pre_obs_particle_pub.publish(pose_array)
 
     # calculates the new target velocity based on the collvoid scheme
     # target_Velocity is the current target velocity towards the goal

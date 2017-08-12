@@ -3,6 +3,7 @@
 <arg name="wand_frame_id"/>
 <arg name="cf_uri"/>
 <arg name="cf_pose"/>
+<arg name="cf_frame_id"/>
 <arg name="prefix"/>
 <arg name="collvoid_file"/>
 <arg name="obstacle_manager_id"/>
@@ -74,6 +75,7 @@
 	    <param name="collvoid/nn_controller_dwm1000/dwm1000_obstacle_active" value="$(arg dwm1000_obstacle_active)"/>
 	    <param name="collvoid/nn_controller_dwm1000/dwm1000_goal_id" value="$(arg dwm1000_goal_id)"/>
 	    <param name="collvoid/nn_controller_dwm1000/deactivate_angle_network" value="$(arg deactivate_angle_network)"/>
+	    <param name="collvoid/nn_controller_dwm1000/cf_frame_id" value="$(arg cf_frame_id)"/>
 	    <!--<param name="collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids" value="$(arg dwm1000_obstacle_ids)"/>-->
         <rosparam param="collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids" subst_value="true">$(arg dwm1000_obstacle_ids)</rosparam>
 	    <param name="collvoid/nn_controller_dwm1000/dwm_distance_offset" value="$(arg dwm_distance_offset)"/>

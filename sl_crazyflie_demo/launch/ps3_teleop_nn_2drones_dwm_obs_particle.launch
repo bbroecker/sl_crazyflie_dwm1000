@@ -9,9 +9,9 @@
   <arg name="cf2_prefix" default="crazyflie2" />
   <arg name="wand_topic" default="/Robot_3/pose" />
   <arg name="cf1_pose" default="/Robot_1/pose" />
-  <arg name="cf1_frame_id" default="/Robot_1/base_link" />
   <arg name="cf2_pose" default="/Robot_2/pose" />
-  <arg name="cf2_frame_id" default="/Robot_2/base_link" />
+    <arg name="cf1_frame_id" default="/Robot_1/base_link" />
+    <arg name="cf2_frame_id" default="/Robot_2/base_link" />
   <arg name="wand_frame_id" default="/Robot_3/base_link" />
   <arg name="collvoid_file" default="collvoid_nn_dwm1000_discrete_particle.yaml" />
 
@@ -42,6 +42,8 @@
         <arg name="prefix" value="$(arg cf1_prefix)" />
         <arg name="wand_topic" default="$(arg wand_topic)" />
         <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
+        <arg name="dwm1000_obstacle_active" value="True" />
+        <arg name="dwm1000_obstacle_ids" value="[2]" />
     </include>
     </group>
 
@@ -56,6 +58,8 @@
         <arg name="cf_pose" value="$(arg cf2_pose)" />
         <arg name="cf_frame_id" value="$(arg cf2_frame_id)" />
         <arg name="prefix" value="$(arg cf2_prefix)" />
+        <arg name="dwm1000_obstacle_active" value="True" />
+        <arg name="dwm1000_obstacle_ids" value="[1]" />
         <arg name="wand_topic" default="$(arg wand_topic)" />
         <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
     </include>

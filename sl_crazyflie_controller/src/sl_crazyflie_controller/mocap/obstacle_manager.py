@@ -10,6 +10,12 @@ POSE_TOPIC_PARAM = "~OBJECT_ID/pose_topic"
 POSE_TOPIC_OUT = "/OBJECT_ID/pose"
 DECAY_FACTOR = 3
 
+
+def rotate_vel(x_vel, y_vel, angle):
+    x = x_vel * np.cos(angle) - y_vel * np.sin(angle)
+    y = x_vel * np.sin(angle) + y_vel * np.cos(angle)
+    return x, y
+
 class PoseManager:
     def __init__(self):
         rate = rospy.get_param("~obstacle_publish_rate", 20)
@@ -21,6 +27,9 @@ class PoseManager:
         if len(ids) is not len(topics):
             rospy.logwarn("parameter count is not correct")
             return
+        self.avg_vel = {}
+        for i in ids:
+            self.avg_vel[i] = []
         for idx, topic_str in enumerate(topics):
             print idx, topic_str
             self.pose_subs[idx] = rospy.Subscriber(topic_str, PoseStamped, self.callback_pose, ids[idx])
@@ -28,7 +37,15 @@ class PoseManager:
         while not rospy.is_shutdown():
             for key, value in self.obstacles.iteritems():
                 if (rospy.Time.now() - value.time).to_sec() < (1.0 / rate) * DECAY_FACTOR:
+                    value.obs.x_vel_local = np.mean([c.obs.x_vel_local for c in self.avg_vel[i]])
+                    value.obs.y_vel_local = np.mean([c.obs.y_vel_local for c in self.avg_vel[i]])
+                    value.obs.x_vel_global = np.mean([c.obs.x_vel_global for c in self.avg_vel[i]])
+                    value.obs.y_vel_global = np.mean([c.obs.y_vel_global for c in self.avg_vel[i]])
+                    value.obs.z_vel = np.mean([c.obs.z_vel for c in self.avg_vel[i]])
                     self.obstacle_publisher.publish(value.obs)
+                    self.avg_vel[i] = [value]
+                    # value.obs.x_vel_local = value.obs.y_vel_local = value.obs.x_vel_global = value.obs.y_vel_global = value.obs.z_vel= 0.0
+            # self.obstacles = {}
             r.sleep()
 
     def callback_pose(self, pose, i):
@@ -45,13 +62,26 @@ class PoseManager:
         if i in self.obstacles:
             prev_ob = self.obstacles[i]
             dt = (now - prev_ob.time).to_sec()
-            obs.x_vel_global = (obs.x - prev_ob.obs.x) / dt
-            obs.y_vel_global = (obs.y - prev_ob.obs.y) / dt
-            obs.z_vel = (obs.z - prev_ob.obs.z) / dt
-            obs.x_vel_local = obs.x_vel_global * np.cos(-obs.yaw) - obs.y_vel_local * np.sin(-obs.yaw)
-            obs.y_vel_local = obs.x_vel_global * np.sin(-obs.yaw) + obs.y_vel_local * np.cos(-obs.yaw)
+            obs.x_vel_global = ((obs.x - prev_ob.obs.x) / dt + prev_ob.obs.x_vel_global)/2.0
+            obs.y_vel_global = ((obs.y - prev_ob.obs.y) / dt + prev_ob.obs.y_vel_global)/2.0
+            # if abs(obs.x_vel_global) > 0.01 or abs(obs.y_vel_global) > 0.01:
+            #     print "obs manager x: {} y: {}".format(obs.x_vel_global, obs.y_vel_global)
+            #     if abs(obs.x_vel_global) > 0.01:
+            #         print "x pos  {} x prev_pos {}".format(obs.x, prev_ob.obs.x)
+            obs.z_vel = ((obs.z - prev_ob.obs.z) / dt + prev_ob.obs.z_vel)/ 2.0
+            obs.x_vel_local, obs.y_vel_local = rotate_vel(obs.x_vel_global, obs.y_vel_global, -obs.yaw)
+            obs.x_vel_local += prev_ob.obs.x_vel_local
+            obs.x_vel_local /= 2.0
+            obs.y_vel_local += prev_ob.obs.y_vel_local
+            obs.y_vel_local /= 2.0
+
+            # obs.x_vel_local = obs.x_vel_global * np.cos(-obs.yaw) - obs.y_vel_local * np.sin(-obs.yaw)
+            # obs.y_vel_local = obs.x_vel_global * np.sin(-obs.yaw) + obs.y_vel_local * np.cos(-obs.yaw)
+
+            #     print "obstacle manager x: {} y: {}".format(obs.x_vel_local, obs.y_vel_local)
 
         ot = ObstacleTime(obs, now)
+        self.avg_vel[i].append(ot)
 
         self.obstacles[i] = ot
 

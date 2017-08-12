@@ -21,5 +21,5 @@ collvoid:
 #    dwm1000_active: True
     dwm_timeout: 1.0
     avg_buffer_size: 1
-    movement_config_file: "/home/broecker/src/cf_nn_weights/v2/movement/drqn_3/nn_config_drqn.yaml"
+    movement_config_file: "/home/broecker/src/cf_nn_weights/v2/movement/drqn_1/nn_config_drqn.yaml"
     angle_config_file: "/home/broecker/src/cf_nn_weights/v2/angle_discrete/orientation_joint/rnn_1/nn_config.yaml"
