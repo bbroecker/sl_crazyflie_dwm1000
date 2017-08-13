@@ -31,23 +31,23 @@ NN_GOAL_DISTANCE_OFFSET = 0.0
 class ObstacleCfg(ParticleFilter2_5D_Cfg):
     def __init__(self):
         super(ObstacleCfg, self).__init__()
-        self.sample_size = 50
+        self.sample_size = 70
         self.x_limit = [-2.0, 2.0]
-        self.resample_x_limit = [-0.1, 0.1]
+        self.resample_x_limit = [-0.2, 0.2]
         self.y_limit = [-2.0, 2.0]
-        self.resample_y_limit = [-0.1, 0.1]
+        self.resample_y_limit = [-0.2, 0.2]
         self.yaw_limit = [-np.pi, np.pi]
         self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
-        self.respawn_yaw_limit = [-np.pi * 0.01, np.pi * 0.01]
-        self.respawn_y_limit = [-0.1, 0.1]
-        self.respawn_x_limit = [-0.1, 0.1]
+        self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+        self.respawn_y_limit = [-0.01, 0.01]
+        self.respawn_x_limit = [-0.01, 0.01]
         self.new_spawn_samples = 0.1
         self.resample_prob = 0.95
 
 class GoalCfg(ParticleFilter2_5D_Cfg):
     def __init__(self):
         super(GoalCfg, self).__init__()
-        self.sample_size = 10
+        self.sample_size = 30
         self.x_limit = [-2.0, 2.0]
         self.resample_x_limit = [-0.1, 0.1]
         self.y_limit = [-2.0, 2.0]
@@ -330,7 +330,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         if self.dwm_goal_active or self.dwm1000_active or self.dwm_obstacle_active:
             self.dwm_distance_offset = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm_distance_offset")
         self.movement_cfg_predict = NNConfigMovement(movement_config_file)
-        self.movement_cfg_predict.speed_limit = 0.4
+        self.movement_cfg_predict.speed_limit = 0.5
         self.movement_cfg_predict.keep_prob = 1.0
         self.angle_cfg_predict = NNConfigAngle(angle_config_file)
         self.angle_cfg_predict.keep_prob = 1.0
@@ -361,6 +361,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         self.last_velocity = None
         self.current_pose = None
         self.prev_pose = None
+        self.prev_obstacle = {}
         self.sub = rospy.Subscriber("/obstacle_poses", Obstacle, self.obs_pose_callback)
         self.current_obstacles = []
         self.last_pose_dict = {}
@@ -455,6 +456,8 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
 
         # print "nn incoming {0}".format(current_target_velocity.z)
         self.update_obstacles()
+        prev_obstacle = None
+        tmp_id = None
         g_distance = 3.0
         if self.dwm_goal_active:
             g_distance = self.dwm_sensor.get_distance(self.dwm_goal_id)
@@ -491,8 +494,19 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                 obstacle = self.get_closes_obs()
                 ox = obstacle.x - self.current_pose.pose.position.x
                 oy = obstacle.y - self.current_pose.pose.position.y
+                if obstacle.id not in self.prev_obstacle:
+                    self.prev_obstacle[obstacle.id] = obstacle
+                prev_obstacle = copy.deepcopy(self.prev_obstacle[obstacle.id])
+                tmp_id = obstacle.id
+                o_vx = (obstacle.x - prev_obstacle.x) / dt
+                o_vy = (obstacle.y - prev_obstacle.y) / dt
+                o_vx, o_vy = self.rotate_vel(o_vx, o_vy, -obstacle.yaw)
+                self.prev_obstacle[obstacle.id] = obstacle
+                # print o_vy, o_vx
+                # o_vx = obstacle.x_vel_local
+                # o_vy = obstacle.y_vel_local
                 self.ox, self.oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
-                o_distance = np.sqrt(ox ** 2 + oy ** 2)
+                o_distance = np.random.np.sqrt(ox ** 2 + oy ** 2) + np.random.normal(self.nn.particles_obs.cfg.mean, self.nn.particles_obs.cfg.variance)
                 if self.dwm_obstacle_active:
                     tmp = self.dwm_sensor.get_closest(self.dwm_obstacle_ids)
                     if tmp is not None:
@@ -503,10 +517,10 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                 #     print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
                 if self.deactivate_angle_network:
                     print "Angle network NOT ACTIVE!!!"
-                    ox_, oy_, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
+                    ox_, oy_, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, o_vx, o_vx, o_vy,
                                                                o_distance, dt)
                 else:
-                    self.ox, self.oy, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, obstacle.x_vel_local, obstacle.y_vel_local,
+                    self.ox, self.oy, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, o_vx, o_vy,
                                                                o_distance, dt)
 
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
@@ -531,8 +545,18 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
             self.last_update_thread = rospy.Time.now()
             self.prev_pose = copy.deepcopy(self.current_pose)
+            self.update_prev_obstacles(tmp_id)
+            if prev_obstacle is not None:
+                distance = np.sqrt((prev_obstacle.x- self.prev_obstacle[tmp_id].x)**2 + (prev_obstacle.y - self.prev_obstacle[tmp_id].y)**2)
+                # print "distance : {}".format(distance)
 
         # print (rospy.Time.now() - start).to_sec()
+
+    def update_prev_obstacles(self, skip_id=None):
+        for o in self.current_obstacles:
+            if skip_id is not None and skip_id == o.id:
+                continue
+            self.prev_obstacle[o.id] = o
 
     def publish_goal_particles(self):
         pose_array = PoseArray()

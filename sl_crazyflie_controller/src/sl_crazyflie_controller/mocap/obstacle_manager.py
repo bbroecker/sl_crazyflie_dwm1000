@@ -18,7 +18,7 @@ def rotate_vel(x_vel, y_vel, angle):
 
 class PoseManager:
     def __init__(self):
-        rate = rospy.get_param("~obstacle_publish_rate", 20)
+        rate = rospy.get_param("~obstacle_publish_rate", 100)
         self.pose_subs = {}
         self.obstacle_publisher = rospy.Publisher("/obstacle_poses", Obstacle, queue_size=10)
         self.obstacles = {}
@@ -62,18 +62,14 @@ class PoseManager:
         if i in self.obstacles:
             prev_ob = self.obstacles[i]
             dt = (now - prev_ob.time).to_sec()
-            obs.x_vel_global = ((obs.x - prev_ob.obs.x) / dt + prev_ob.obs.x_vel_global)/2.0
-            obs.y_vel_global = ((obs.y - prev_ob.obs.y) / dt + prev_ob.obs.y_vel_global)/2.0
+            obs.x_vel_global = (obs.x - prev_ob.obs.x) / dt
+            obs.y_vel_global = (obs.y - prev_ob.obs.y) / dt
             # if abs(obs.x_vel_global) > 0.01 or abs(obs.y_vel_global) > 0.01:
             #     print "obs manager x: {} y: {}".format(obs.x_vel_global, obs.y_vel_global)
             #     if abs(obs.x_vel_global) > 0.01:
             #         print "x pos  {} x prev_pos {}".format(obs.x, prev_ob.obs.x)
-            obs.z_vel = ((obs.z - prev_ob.obs.z) / dt + prev_ob.obs.z_vel)/ 2.0
+            obs.z_vel = (obs.z - prev_ob.obs.z) / dt
             obs.x_vel_local, obs.y_vel_local = rotate_vel(obs.x_vel_global, obs.y_vel_global, -obs.yaw)
-            obs.x_vel_local += prev_ob.obs.x_vel_local
-            obs.x_vel_local /= 2.0
-            obs.y_vel_local += prev_ob.obs.y_vel_local
-            obs.y_vel_local /= 2.0
 
             # obs.x_vel_local = obs.x_vel_global * np.cos(-obs.yaw) - obs.y_vel_local * np.sin(-obs.yaw)
             # obs.y_vel_local = obs.x_vel_global * np.sin(-obs.yaw) + obs.y_vel_local * np.cos(-obs.yaw)
@@ -82,7 +78,6 @@ class PoseManager:
 
         ot = ObstacleTime(obs, now)
         self.avg_vel[i].append(ot)
-
         self.obstacles[i] = ot
 
 

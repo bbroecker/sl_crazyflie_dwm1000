@@ -7,6 +7,7 @@ Panels:
         - /Pose1
         - /Pose2
         - /PoseArray1
+        - /PoseArray2
       Splitter Ratio: 0.362816
     Tree Height: 889
   - Class: rviz/Selection
@@ -119,9 +120,17 @@ Visualization Manager:
     - Arrow Length: 0.3
       Class: rviz/PoseArray
       Color: 255; 25; 0
-      Enabled: true
+      Enabled: false
       Name: PoseArray
       Topic: /crazyflie1/obs_particle
+      Unreliable: false
+      Value: false
+    - Arrow Length: 0.3
+      Class: rviz/PoseArray
+      Color: 0; 0; 255
+      Enabled: true
+      Name: PoseArray
+      Topic: /crazyflie1/goal_particle
       Unreliable: false
       Value: true
   Enabled: true
