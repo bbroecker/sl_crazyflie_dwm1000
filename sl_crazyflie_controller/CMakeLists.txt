@@ -12,6 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf_nn_sim
   sl_crazyflie_srvs
   std_srvs
+  roscpp
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -63,6 +65,11 @@ generate_dynamic_reconfigure_options(
 #   Service2.srv
 # )
 
+add_service_files(
+   FILES
+   GetNEATOutputs.srv
+)
+
 ## Generate actions in the 'action' folder
 # add_action_files(
 #   FILES
@@ -75,6 +82,10 @@ generate_dynamic_reconfigure_options(
 #   DEPENDENCIES
 #   geometry_msgs#   sensor_msgs
 # )
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -96,6 +107,9 @@ catkin_package(
 ## Build ##
 ###########
 
+#add_subdirectory(src/sl_crazyflie_controller/collvoid/NEAT)
+add_subdirectory(NEAT)
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 # include_directories(include)
@@ -111,14 +125,17 @@ include_directories(
 ## Declare a cpp executable
 # add_executable(sl_crazyflie_controller_node src/sl_crazyflie_controller_node.cpp)
 
+add_executable(neat_network src/sl_crazyflie_controller/collvoid/neat_network.cpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(sl_crazyflie_controller_node sl_crazyflie_controller_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(sl_crazyflie_controller_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(neat_network
+  ${catkin_LIBRARIES}
+  neatLib
+)
 
 #############
 ## Install ##
