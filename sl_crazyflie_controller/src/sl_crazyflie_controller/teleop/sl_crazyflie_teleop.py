@@ -109,9 +109,11 @@ class Teleop:
         assert isinstance(mode, FlightMode)
         self.current_flight_mode_id = mode.id
 
+    #Check what button was pressed
     def check_button_events(self, joy_msgs):
         ch_flm = ChangeFlightModeRequest()
         ch_flm.mode.id = -1
+
         if self.is_button_released('takeoff', joy_msgs.buttons[TAKEOFF]):
             if self.current_flight_mode_id not in POS_CTRL_MODES or self.current_flight_mode_id == FlightMode.LAND:
                 ch_flm.mode.id = FlightMode.TAKEOFF
@@ -159,6 +161,9 @@ class Teleop:
             if ch_flm.mode.id in INTERNAL_TARGET_MODES and self.is_wanding:
                 self.is_wanding = False
                 self.stop_wanding.call()
+
+            #Change flight mode is aa service request which is picked up by
+            #flight_controller.py 
             self.change_flight_mode(ch_flm)
             self.current_flight_mode_id = ch_flm.mode.id
 
@@ -172,11 +177,13 @@ class Teleop:
         return sign * joy_msg.axes[abs(axis) - 1]
 
     def is_button_released(self, button_name, button_pressed):
+
         if button_pressed:
             self.prev_pressed[button_name] = True
         elif self.prev_pressed[button_name]:
             self.prev_pressed[button_name] = False
             return True
+
         return False
 
     def get_button(self, joy_msgs, button_idx):

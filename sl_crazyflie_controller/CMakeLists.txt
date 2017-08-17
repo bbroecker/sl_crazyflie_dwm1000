@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_srvs
   roscpp
   message_generation
+  crazyflie_driver
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,6 +58,11 @@ generate_dynamic_reconfigure_options(
 #   Message1.msg
 #   Message2.msg
 # )
+
+#add_message_files(
+#   FILES
+#   NEATNetOuts.msg
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(

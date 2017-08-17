@@ -16,7 +16,7 @@ from sl_crazyflie_controller.collvoid.collvoid_controller import CollvoidControl
 from sl_crazyflie_controller.pid_controller.pid_position import PositonController
 from sl_crazyflie_controller.pid_controller.pid_velocity import VelocityController
 
-RATE = 200.0
+RATE = 200.0                                    #200Hz I think
 POSE_TIME_OUT = 0.5
 CONTROLLER_RP_THRESH = 0.05
 TAKEOFF_HEIGHT = 1.6
@@ -87,22 +87,31 @@ class FlightController:
 
 
     def main_loop(self):
+
         r = rospy.Rate(RATE)
+
+        #Waiting for topic 'teleop/cmd_vel'
         while not self.teleop_received:
             r.sleep()
 
         last_update = rospy.Time.now()
         while not rospy.is_shutdown():
+
             current_time = rospy.Time.now()
             dt = (current_time - last_update).to_sec()
+
             ##check for fail safe options
+            #Flight mode manader - keeps check of what mode the CF is in
             mode_changed = self.mode_manager.update_mode(self.last_pose_msg, self.target_msg.target_pose)
+
             if mode_changed:
                 self.update_target_msg()
 
+            #print"Flight mode: ", self.mode_manager.current_flightmode.id
 
             cmd_vel = Twist()
             if self.mode_manager.current_flightmode.id in POS_CTRL_MODES:
+
                 if self.pid_tune_movement_active():
                     # still keep the current target position but allow external vel cmd
                     # is helpful for tuning position control
@@ -110,9 +119,13 @@ class FlightController:
 
                 else:
                     target_velocity = self.calc_target_velocities(self.target_msg, dt)
+
+                #This is where calculate_velocity is called
                 coll_active, target_velocity = self.collvoid_controller.calc_collvoid_velocity(self.last_pose_msg, target_velocity)
+
                 # if coll_active:
                 #     print "before {0} after {1}".format(z, target_velocity.z)
+
                 if self.is_collvoid_active and not coll_active:
                     self.target_msg.target_pose = copy.copy(self.last_pose_msg)
                 self.is_collvoid_active = coll_active
@@ -121,9 +134,11 @@ class FlightController:
                 self.pub_target_pose.publish(self.target_msg.target_pose)
 
             self.send_vel_cmd(cmd_vel)
+
             if (rospy.Time.now() - self.last_fightmode_update).to_sec() > 1.0 / FLIGHT_MODE_UPDATERATE:
                 self.pub_flight_mode.publish(self.mode_manager.current_flightmode)
                 self.last_fightmode_update = rospy.Time.now()
+
             last_update = current_time
             r.sleep()
 

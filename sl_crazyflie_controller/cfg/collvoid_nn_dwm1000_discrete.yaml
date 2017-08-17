@@ -2,7 +2,8 @@ collvoid:
   controllers:
 #    - geofencing_node
 #    - simple_collvoid
-    - nn_controller_dwm1000_discrete
+#    - nn_controller_dwm1000_discrete
+     - neat_controller  
   geofencing:
     min_x: -1.60
     min_y: -2.1

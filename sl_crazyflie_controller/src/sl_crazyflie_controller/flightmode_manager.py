@@ -41,6 +41,8 @@ def euler_distance_pose(pose1, pose2):
 class FlightModeManager:
     def __init__(self):
         self.current_flightmode = FlightMode()
+
+        #Starts in MANUAL mode
         self.current_flightmode.id = FlightMode.MANUAL
 
         ##Target pose for specific modes (takeoff, pos_hold, land)
@@ -55,14 +57,14 @@ class FlightModeManager:
         self.avg_z_vel_list = [0.0 for i in range(Z_VEL_SAMPLE_SIZE)]
         self.avg_z_vel = None
 
-
-
-
+    #I think this checks for bad modes to go into and stops it from happening
     def check_for_fallback_mode(self, target_pose):
+
         if self.current_flightmode.id is FlightMode.DISARM:
             return
 
         change_mode = True
+
         if self.current_flightmode.id is FlightMode.THROW_LAUNCH and self.avg_z_vel > MIN_THROW_SPEED:
             new_mode_id = FlightMode.THROW_LAUNCH_STABILIZE
         elif self.current_flightmode.id is FlightMode.THROW_LAUNCH_STABILIZE and (self.avg_z_vel < MIN_THROW_SPEED or self.last_pose_msg.pose.position.z >= MAX_THROW_HEIGHT):
@@ -83,6 +85,7 @@ class FlightModeManager:
         else:
             change_mode = False
 
+        #Actually changes flight mode if this function has allowed it
         if change_mode:
             change_mode = self.change_flightmode(new_mode_id)
 
@@ -112,6 +115,8 @@ class FlightModeManager:
 
     def change_flightmode(self, mode_id):
 
+        print "Flight mode: ", mode_id
+
         #hack deactive DISARM FIRST
         changed = True
         if self.current_flightmode.id == FlightMode.DISARM and mode_id is not FlightMode.MANUAL or self.current_flightmode.id == mode_id:
@@ -121,9 +126,3 @@ class FlightModeManager:
             self.current_flightmode.id = mode_id
 
         return changed
-
-
-
-
-
-

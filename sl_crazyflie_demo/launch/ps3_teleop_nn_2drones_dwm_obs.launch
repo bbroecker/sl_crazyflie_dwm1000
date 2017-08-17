@@ -4,10 +4,10 @@
    <!-- This was commented out before  -->
    <!--<arg name="cf2_uri" default="radio://0/10/1M" />-->
 
-   <node name="neat_net_node" pkg="sl_crazyflie_controller" type="neat_network" output="screen" />
+  <node name="neat_net_node" pkg="sl_crazyflie_controller" type="neat_network" output="screen" />
 
 
-  <!-- <arg name="cf1_uri" default="radio://0/80/2M" />
+  <arg name="cf1_uri" default="radio://0/80/2M" />
   <arg name="cf2_uri" default="radio://0/10/2M" />
   <arg name="joy_dev" default="/dev/input/js0" />
   <arg name="cf1_prefix" default="crazyflie1" />
@@ -22,16 +22,18 @@
   </include>
 
   <node name="joy" pkg="joy" type="joy_node" output="screen" >
-      <param name="dev" value="$(arg joy_dev)" />
+      <param name="dev" value="/dev/input/js1" />
   </node>
 
    <node name="joy_distributor" pkg="sl_crazyflie_controller" type="joy_distributor.py" output="screen" >
       <rosparam param="cf_name_spaces">["/crazyflie1", "/crazyflie2"]</rosparam>
   </node>
+
    <node name="obstacle_manager" pkg="sl_crazyflie_controller" type="obstacle_manager.py" output="screen" >
       <rosparam param="ids">[1, 2]</rosparam>
       <rosparam param="pose_topics">["/Robot_1/pose", /Robot_2/pose]</rosparam>
   </node>
+
    <group ns="$(arg cf1_prefix)">
     <node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop_switch_places.py" output="screen" >
             <param name="switch_with_id" value="2" />
@@ -64,9 +66,9 @@
         <arg name="wand_topic" default="$(arg wand_topic)" />
         <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
     </include>
-    </group> -->
+    </group>
 
-  <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap_2.rviz" /> -->
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap_2.rviz" />
 
   <!-- <node pkg="rqt_plot" type="rqt_plot" name="rqt_plot" args="/crazyflie1/temperature/temperature"/> -->
 
