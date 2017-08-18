@@ -1,0 +1,14 @@
+random_coordinator:
+  border:
+    min_x: -1.60
+    min_y: -2.1
+    max_x: 2.3
+    max_y: 1.5
+  secure_distance: 0.3
+  goal_distance: 0.3
+  pose_topics:
+    - "/Robot_1/pose"
+    - "/Robot_2/pose"
+  namespaces:
+    - "/crazyflie1"
+    - "/crazyflie2"

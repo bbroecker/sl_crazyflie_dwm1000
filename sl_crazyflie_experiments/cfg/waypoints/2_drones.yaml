@@ -1,0 +1,8 @@
+waypoint_coordinator:
+  waypoint_file: "cf1.yaml"
+  pose_topics:
+  - "/Robot_1/pose"
+  - "/Robot_2/pose"
+  namespaces:
+    - "/crazyflie1"
+    - "/crazyflie2"

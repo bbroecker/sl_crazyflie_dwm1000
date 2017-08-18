@@ -24,9 +24,13 @@ from tf_nn_sim.networks.rrn_dqn import DQN_RNN
 from tf_nn_sim.v2.network_wrapper import AngleNetworkWrapper
 from tf_nn_sim.v2.particle_filter.particle_filter_nn import ParticleFilterNN, ParticleFilter2_5D_Cfg
 import threading
+
 NUM_ACTIONS = 10
 import collections
+
 NN_GOAL_DISTANCE_OFFSET = 0.0
+
+
 # NN_GOAL_DISTANCE_OFFSET = 0.0
 
 class ObstacleCfg(ParticleFilter2_5D_Cfg):
@@ -45,6 +49,7 @@ class ObstacleCfg(ParticleFilter2_5D_Cfg):
         self.new_spawn_samples = 0.1
         self.resample_prob = 0.95
 
+
 class GoalCfg(ParticleFilter2_5D_Cfg):
     def __init__(self):
         super(GoalCfg, self).__init__()
@@ -54,14 +59,15 @@ class GoalCfg(ParticleFilter2_5D_Cfg):
         self.y_limit = [-2.0, 2.0]
         self.resample_y_limit = [-0.1, 0.1]
         self.yaw_limit = [-np.pi, np.pi]
-        self.resample_yaw_limit = [-np.pi*0.1, np.pi*0.1]
-        self.respawn_yaw_limit = [-np.pi*0.1, np.pi*0.1]
+        self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+        self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
         self.respawn_y_limit = [-0.01, 0.01]
         self.respawn_x_limit = [-0.01, 0.01]
         self.new_spawn_samples = 0.10
         self.resample_prob = 0.90
         self.variance = 0.0312979988458
         # self.variance = 0.3
+
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
     # Figure out how 'wide' each range is
@@ -107,25 +113,24 @@ class NNMovementWrapper:
         self.target_goal_vel = Velocity()
         self.first_call = False
 
-
         self.graph = tf.Graph().as_default()
         initializer_movement = tf.random_normal_initializer(stddev=movement_cfg.init_scale)
         with tf.variable_scope("Movement_Model", reuse=None, initializer=initializer_movement) as scope:
             self.network_movement = DQN_RNN(num_states=7, num_actions=NUM_ACTIONS,
-                                               config=movement_cfg, namespace="DQN",
-                                               is_training=False,
-                                               log_path=movement_cfg.log_folder,
-                                               weight_path=movement_cfg.weight_folder, variable_scope=scope,
-                                               num_drones=1)
+                                            config=movement_cfg, namespace="DQN",
+                                            is_training=False,
+                                            log_path=movement_cfg.log_folder,
+                                            weight_path=movement_cfg.weight_folder, variable_scope=scope,
+                                            num_drones=1)
         initializer_angle = tf.random_normal_initializer(stddev=angle_cfg.init_scale)
         with tf.variable_scope("Angle_Model_Discrete", reuse=None, initializer=initializer_angle) as angle_scope:
             self.angle_predict_network = GeneralRRNDiscreteModelMultitaskJointLoss(num_drones=1,
-                                                            config=angle_cfg,
-                                                            namespace="angle",
-                                                            is_training=False,
-                                                            log_path=angle_cfg.log_folder,
-                                                            weight_path=angle_cfg.weight_folder,
-                                                            variable_scope=angle_scope)
+                                                                                   config=angle_cfg,
+                                                                                   namespace="angle",
+                                                                                   is_training=False,
+                                                                                   log_path=angle_cfg.log_folder,
+                                                                                   weight_path=angle_cfg.weight_folder,
+                                                                                   variable_scope=angle_scope)
 
         init = tf.global_variables_initializer()
         config = tf.ConfigProto(
@@ -136,7 +141,8 @@ class NNMovementWrapper:
         print('Loading Movement Model...')
         self.network_movement.load_weight(self.sess)
         self.angle_predict_network.load_weight(self.sess)
-        self.angle_networks_wrapper = AngleNetworkWrapper(self.sess, self.angle_predict_network, 3, ObstacleCfg(), GoalCfg())
+        self.angle_networks_wrapper = AngleNetworkWrapper(self.sess, self.angle_predict_network, 3, ObstacleCfg(),
+                                                          GoalCfg())
         self.rnn_movement_state = self.network_movement.gen_init_state(self.sess, 1)
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt):
@@ -157,12 +163,14 @@ class NNMovementWrapper:
 
     def get_new_obstacle_state(self, my_vx, my_vy, o_vx, o_vy, distance, dt):
         my_vx_t = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
-                                     self.angle_cfg.max_x)
-        my_vy_t = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
+                            self.angle_cfg.max_x)
+        my_vy_t = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
+                            self.angle_cfg.max_x)
 
         o_vx_t = translate(o_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
-                                   self.angle_cfg.max_x)
-        o_vy_t = translate(o_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
+                           self.angle_cfg.max_x)
+        o_vy_t = translate(o_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
+                           self.angle_cfg.max_x)
 
         dist = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x, self.angle_cfg.max_x)
         s = [my_vx_t, my_vy_t, o_vx_t, o_vy_t, dist, dt]
@@ -170,8 +178,9 @@ class NNMovementWrapper:
         #                                                                               distance, dt, other_vel,
         #                                                                               other_vel_angle)
 
-        predict_angle, predict_orientation, self.rrn_states_obstacle = self.angle_predict_network.predict_angle_orientation(self.sess, s,
-                                                                                           self.rrn_states_obstacle)
+        predict_angle, predict_orientation, self.rrn_states_obstacle = self.angle_predict_network.predict_angle_orientation(
+            self.sess, s,
+            self.rrn_states_obstacle)
         predict_angle = self.discrete_to_angle(predict_angle[0])
         predict_orientation = self.discrete_to_angle(predict_orientation[0])
         # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
@@ -197,26 +206,26 @@ class NNMovementWrapper:
         self.rrn_states_goal = self.angle_predict_network.gen_init_state(self.sess, 1)
         self.rnn_movement_state = self.network_movement.gen_init_state(self.sess, 1)
 
-    #goal offset = hack for nn, think it far away but it's not
-    def best_velocity(self, v_x, v_y, goal_dx, goal_dy, obstacle_dx, obstacle_dy, delta_time, goal_distance_offset = 0):
+    # goal offset = hack for nn, think it far away but it's not
+    def best_velocity(self, v_x, v_y, goal_dx, goal_dy, obstacle_dx, obstacle_dy, delta_time, goal_distance_offset=0):
         g_dx = translate(goal_dx, -self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                         self.movement_cfg.max_sensor_distance,
+                         self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         g_dy = translate(goal_dy, -self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                         self.movement_cfg.max_sensor_distance,
+                         self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         o_dx = translate(obstacle_dx, -self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                         self.movement_cfg.max_sensor_distance,
+                         self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         o_dy = translate(obstacle_dy, -self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.max_sensor_distance,
-                                               self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                         self.movement_cfg.max_sensor_distance,
+                         self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         v_x = translate(v_x, -self.movement_cfg.max_velocity, self.movement_cfg.max_velocity,
-                                              self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                        self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         v_y = translate(v_y, -self.movement_cfg.max_velocity, self.movement_cfg.max_velocity,
-                                              self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
+                        self.movement_cfg.min_state_out, self.movement_cfg.max_state_out)
         update_tick = translate(delta_time, 0.0, 1.0, self.movement_cfg.min_state_out,
-                                     self.movement_cfg.max_state_out)
+                                self.movement_cfg.max_state_out)
 
         s = [v_x, v_y, g_dx, g_dy, o_dx, o_dy, update_tick]
         # print s
@@ -226,7 +235,8 @@ class NNMovementWrapper:
             # actions[d_id] = 2
             # a = 5
         else:
-            action, self.rnn_movement_state = self.network_movement.predict_action(self.sess, self.rnn_movement_state, s)
+            action, self.rnn_movement_state = self.network_movement.predict_action(self.sess, self.rnn_movement_state,
+                                                                                   s)
 
         action = action[0]
         damping_per_tick = 1.0 - self.movement_cfg.damping_per_sec * delta_time
@@ -234,11 +244,10 @@ class NNMovementWrapper:
         brake_per_tick = 1.0 - self.movement_cfg.brake_per_sec * delta_time
         brake_per_tick = 0.0 if brake_per_tick < 0.0 else brake_per_tick
 
-
-
         accel = self.movement_cfg.acceleration * delta_time
         diagonal = np.sqrt((accel ** 2) / 2.0)
-        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) - goal_distance_offset < 0.15 and np.sqrt(obstacle_dx ** 2 + obstacle_dy ** 2) > 0.4:
+        if np.sqrt(goal_dx ** 2 + goal_dy ** 2) - goal_distance_offset < 0.15 and np.sqrt(
+                                obstacle_dx ** 2 + obstacle_dy ** 2) > 0.4:
             self.target_goal_vel.x = 0.0
             self.target_goal_vel.y = 0.0
         else:
@@ -269,7 +278,6 @@ class NNMovementWrapper:
                 self.target_goal_vel.x *= damping_per_tick
                 self.target_goal_vel.y *= damping_per_tick
 
-
         self.target_goal_vel = self.cut_velocity(self.target_goal_vel, self.movement_cfg.speed_limit)
 
         return self.target_goal_vel
@@ -286,7 +294,7 @@ class NNMovementWrapper:
         return result_vel
 
 
-class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
+class NNControllerDWM1000DiscreteParticleMulti(CollvoidInterface):
     def __init__(self):
         CollvoidInterface.__init__(self)
         self.my_pose_id = rospy.get_param("~obstacle_manager_id")
@@ -298,7 +306,8 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         self.dwm_goal_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_active")
         self.dwm_obstacle_active = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_obstacle_active")
         self.cf_frame_id = rospy.get_param("~collvoid/nn_controller_dwm1000/cf_frame_id")
-        self.deactivate_angle_network = rospy.get_param("~collvoid/nn_controller_dwm1000/deactivate_angle_network", False)
+        self.deactivate_angle_network = rospy.get_param("~collvoid/nn_controller_dwm1000/deactivate_angle_network",
+                                                        False)
         if self.dwm_goal_active:
             self.dwm_goal_id = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_id")
         if self.dwm_obstacle_active:
@@ -423,7 +432,6 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
         vel.y *= speed
         return result_vel
 
-
     def update_predictions(self):
         start = rospy.Time.now()
         if self.last_update_thread is None:
@@ -462,7 +470,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             # print "main distance: {}".format(d)
             self.vel_x, self.vel_y = self.rotate_vel(self.vel_x, self.vel_y, -get_yaw_from_msg(self.current_pose))
             if (not self.dwm_obstacle_active and len(self.current_obstacles) <= 0) or (
-                self.dwm_obstacle_active and self.dwm_sensor.get_closest(self.dwm_obstacle_ids) is None):
+                        self.dwm_obstacle_active and self.dwm_sensor.get_closest(self.dwm_obstacle_ids) is None):
                 self.ox = self.max_sensor_distance * np.cos(0.0)
                 self.oy = self.max_sensor_distance * np.sin(0.0)
                 # print "IGNORE OBSTACLES"
@@ -483,14 +491,17 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                     # o_vx = obstacle.x_vel_local
                     # o_vy = obstacle.y_vel_local
                     self.ox, self.oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
-                    o_distance = np.random.np.sqrt(ox ** 2 + oy ** 2) + np.random.normal(self.nn.particles_obs.cfg.mean, self.nn.particles_obs.cfg.variance)
+                    o_distance = np.random.np.sqrt(ox ** 2 + oy ** 2) + np.random.normal(
+                        self.nn.angle_networks_wrapper.particle_obs_cfg.mean,
+                        self.nn.angle_networks_wrapper.particle_obs_cfg.variance)
                     if self.dwm_obstacle_active:
                         tmp = self.dwm_sensor.get_distance(obstacle.id)
                         if tmp is not None:
                             o_distance = tmp
                         else:
                             rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
-                    self.nn.angle_networks_wrapper.append_obs_state(self.vel_x, self.vel_y, o_vx, o_vx, o_vy, o_distance, dt)
+                    self.nn.angle_networks_wrapper.append_obs_state(obstacle.id, self.vel_x, self.vel_y, o_vx, o_vy,
+                                                                    o_distance, dt)
                 self.nn.angle_networks_wrapper.update_obs_particle_filter()
                 # else:
                 #     print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
@@ -524,10 +535,11 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             self.prev_pose = copy.deepcopy(self.current_pose)
             # self.update_prev_obstacles(tmp_id)
             if prev_obstacle is not None:
-                distance = np.sqrt((prev_obstacle.x- self.prev_obstacle[tmp_id].x)**2 + (prev_obstacle.y - self.prev_obstacle[tmp_id].y)**2)
+                distance = np.sqrt((prev_obstacle.x - self.prev_obstacle[tmp_id].x) ** 2 + (
+                prev_obstacle.y - self.prev_obstacle[tmp_id].y) ** 2)
                 # print "distance : {}".format(distance)
 
-        # print (rospy.Time.now() - start).to_sec()
+                # print (rospy.Time.now() - start).to_sec()
 
     def update_prev_obstacles(self, skip_id=None):
         for o in self.current_obstacles:
@@ -591,7 +603,8 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                 self.ox = self.max_sensor_distance * np.cos(0.0)
                 self.oy = self.max_sensor_distance * np.sin(0.0)
             # print vel_y, vel_y
-            tmp = self.nn.best_velocity(self.vel_x, self.vel_y, self.gx, self.gy, self.ox, self.oy, dt, goal_distance_offset=NN_GOAL_DISTANCE_OFFSET)
+            tmp = self.nn.best_velocity(self.vel_x, self.vel_y, self.gx, self.gy, self.ox, self.oy, dt,
+                                        goal_distance_offset=NN_GOAL_DISTANCE_OFFSET)
             # print "prev x: {0} y: {1} after {2} {3} {4}".format(self.last_velocity.x, self.last_velocity.y, tmp.x, tmp.y, self.max_velocity)
 
             self.last_velocity.x = 0
