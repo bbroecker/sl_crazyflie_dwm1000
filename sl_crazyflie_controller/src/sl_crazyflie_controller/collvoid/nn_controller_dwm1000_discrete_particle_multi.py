@@ -21,6 +21,7 @@ import numpy as np
 from tf_nn_sim.networks.rrn_cnn import GeneralRRNDiscreteModel
 from tf_nn_sim.networks.rrn_cnn_multitask_join import GeneralRRNDiscreteModelMultitaskJointLoss
 from tf_nn_sim.networks.rrn_dqn import DQN_RNN
+from tf_nn_sim.v2.network_wrapper import AngleNetworkWrapper
 from tf_nn_sim.v2.particle_filter.particle_filter_nn import ParticleFilterNN, ParticleFilter2_5D_Cfg
 import threading
 NUM_ACTIONS = 10
@@ -135,43 +136,19 @@ class NNMovementWrapper:
         print('Loading Movement Model...')
         self.network_movement.load_weight(self.sess)
         self.angle_predict_network.load_weight(self.sess)
-        self.rrn_states_obstacle = self.angle_predict_network.gen_init_state(self.sess, 1)
-        self.rrn_states_goal = self.angle_predict_network.gen_init_state(self.sess, 1)
-        self.particles_goal = ParticleFilterNN(GoalCfg())
-        self.particles_obs = ParticleFilterNN(ObstacleCfg())
+        self.angle_networks_wrapper = AngleNetworkWrapper(self.sess, self.angle_predict_network, 3, ObstacleCfg(), GoalCfg())
         self.rnn_movement_state = self.network_movement.gen_init_state(self.sess, 1)
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt):
-        # print my_vx, my_vy
-        my_vx_t = translate(my_vx, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x,
-                                     self.angle_cfg.max_x)
-        my_vy_t = translate(my_vy, -self.angle_cfg.max_velocity, self.angle_cfg.max_velocity, self.angle_cfg.min_x, self.angle_cfg.max_x)
-        dist_norm = translate(distance, 0, self.angle_cfg.max_sensor_distance, self.angle_cfg.min_x,
-                              self.angle_cfg.max_x)
-        s = [my_vx_t, my_vy_t, 0.0, 0.0, dist_norm, dt]
-        # print "my_vel: {} my_angle: {} distance: {} dt: {}".format(velocity, velocity_angle, distance, dt)
+        self.angle_networks_wrapper.update_goal_particle_filter(my_vx, my_vy, 0.0, 0.0, distance, dt)
+        goal_x, goal_y, goal_yaw = self.angle_networks_wrapper.get_goal_estimate_pose()
 
-        predict_angle, predict_orientation, self.rrn_states_goal = self.angle_predict_network.predict_angle_orientation(self.sess, s,
-                                                                                       self.rrn_states_goal)
-        # predict_angle = translate(predict_angle, self.angle_cfg.min_y, self.angle_cfg.max_y, -np.pi, np.pi)
-        predict_angle = self.discrete_to_angle(predict_angle[0])
-        predict_orientation = self.discrete_to_angle(predict_orientation[0])
-        dx = distance * np.cos(predict_angle)
-        dy = distance * np.sin(predict_angle)
-
-        if self.first_call:
-            print "RESET GOAL?"
-            self.particles_obs.reset(dx, dy, predict_orientation)
-
-        self.particles_goal.update_samples(my_vx, my_vy, 0.0, 0.0, dt, distance, dx, dy, predict_orientation)
-
-        x, y, yaw = self.particles_goal.local_pose()
-        predict_angle = np.arctan2(y, x)
+        predict_angle = np.arctan2(goal_y, goal_x)
 
         # return [velocity, velocity_angle, 0.0, 0.0, goal_distance, 1.0 / self.update_rate]
         # print "nn: x: {} y {} , other x: {} y: {}".format(dx, dy, x, y)
         # return dx, dy, predict_angle
-        return x, y, predict_angle
+        return goal_x, goal_y, predict_angle
 
     def discrete_to_angle(self, discrete_angle):
         range_size = 2 * np.pi
@@ -491,37 +468,37 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
                 # print "IGNORE OBSTACLES"
 
             else:
-                obstacle = self.get_closes_obs()
-                ox = obstacle.x - self.current_pose.pose.position.x
-                oy = obstacle.y - self.current_pose.pose.position.y
-                if obstacle.id not in self.prev_obstacle:
+                for obstacle in self.current_obstacles:
+                    ox = obstacle.x - self.current_pose.pose.position.x
+                    oy = obstacle.y - self.current_pose.pose.position.y
+                    if obstacle.id not in self.prev_obstacle:
+                        self.prev_obstacle[obstacle.id] = obstacle
+                    prev_obstacle = copy.deepcopy(self.prev_obstacle[obstacle.id])
+                    tmp_id = obstacle.id
+                    o_vx = (obstacle.x - prev_obstacle.x) / dt
+                    o_vy = (obstacle.y - prev_obstacle.y) / dt
+                    o_vx, o_vy = self.rotate_vel(o_vx, o_vy, -obstacle.yaw)
                     self.prev_obstacle[obstacle.id] = obstacle
-                prev_obstacle = copy.deepcopy(self.prev_obstacle[obstacle.id])
-                tmp_id = obstacle.id
-                o_vx = (obstacle.x - prev_obstacle.x) / dt
-                o_vy = (obstacle.y - prev_obstacle.y) / dt
-                o_vx, o_vy = self.rotate_vel(o_vx, o_vy, -obstacle.yaw)
-                self.prev_obstacle[obstacle.id] = obstacle
-                # print o_vy, o_vx
-                # o_vx = obstacle.x_vel_local
-                # o_vy = obstacle.y_vel_local
-                self.ox, self.oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
-                o_distance = np.random.np.sqrt(ox ** 2 + oy ** 2) + np.random.normal(self.nn.particles_obs.cfg.mean, self.nn.particles_obs.cfg.variance)
-                if self.dwm_obstacle_active:
-                    tmp = self.dwm_sensor.get_closest(self.dwm_obstacle_ids)
-                    if tmp is not None:
-                        o_distance = tmp
-                    else:
-                        rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
+                    # print o_vy, o_vx
+                    # o_vx = obstacle.x_vel_local
+                    # o_vy = obstacle.y_vel_local
+                    self.ox, self.oy = self.rotate_vel(ox, oy, -get_yaw_from_msg(self.current_pose))
+                    o_distance = np.random.np.sqrt(ox ** 2 + oy ** 2) + np.random.normal(self.nn.particles_obs.cfg.mean, self.nn.particles_obs.cfg.variance)
+                    if self.dwm_obstacle_active:
+                        tmp = self.dwm_sensor.get_distance(obstacle.id)
+                        if tmp is not None:
+                            o_distance = tmp
+                        else:
+                            rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
+                    self.nn.angle_networks_wrapper.append_obs_state(self.vel_x, self.vel_y, o_vx, o_vx, o_vy, o_distance, dt)
+                self.nn.angle_networks_wrapper.update_obs_particle_filter()
                 # else:
                 #     print "dwm obstacle not active x {} y {} distance {}".format(ox, oy, o_distance)
                 if self.deactivate_angle_network:
                     print "Angle network NOT ACTIVE!!!"
-                    ox_, oy_, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, o_vx, o_vx, o_vy,
-                                                               o_distance, dt)
+                    ox_, oy_, angle = self.nn.angle_networks_wrapper.get_obs_estimate_pose()
                 else:
-                    self.ox, self.oy, angle = self.nn.get_new_obstacle_state(self.vel_x, self.vel_y, o_vx, o_vy,
-                                                               o_distance, dt)
+                    self.ox, self.oy, angle = self.nn.angle_networks_wrapper.get_obs_estimate_pose()
 
                 self.publish_predict_angle(self.pre_obs_angle_pub, angle)
 
@@ -545,7 +522,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
             self.publish_predict_angle(self.pre_goal_angle_pub, angle)
             self.last_update_thread = rospy.Time.now()
             self.prev_pose = copy.deepcopy(self.current_pose)
-            self.update_prev_obstacles(tmp_id)
+            # self.update_prev_obstacles(tmp_id)
             if prev_obstacle is not None:
                 distance = np.sqrt((prev_obstacle.x- self.prev_obstacle[tmp_id].x)**2 + (prev_obstacle.y - self.prev_obstacle[tmp_id].y)**2)
                 # print "distance : {}".format(distance)
@@ -561,7 +538,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
     def publish_goal_particles(self):
         pose_array = PoseArray()
         pose_array.header.frame_id = self.cf_frame_id
-        for p in self.nn.particles_goal.samples:
+        for p in self.nn.angle_networks_wrapper.get_goal_particles():
             pose = Pose()
             pose.position.x = p.x
             pose.position.y = p.y
@@ -572,7 +549,7 @@ class NNControllerDWM1000DiscreteParticle(CollvoidInterface):
     def publish_obs_particles(self):
         pose_array = PoseArray()
         pose_array.header.frame_id = self.cf_frame_id
-        for p in self.nn.particles_obs.samples:
+        for p in self.nn.angle_networks_wrapper.get_obs_particles():
             pose = Pose()
             pose.position.x = p.x
             pose.position.y = p.y
