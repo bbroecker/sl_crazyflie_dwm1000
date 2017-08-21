@@ -3,12 +3,16 @@ collvoid:
 #    - geofencing_node
 #    - simple_collvoid
 #    - nn_controller_dwm1000_discrete
-     - neat_controller  
+     - neat_controller
   geofencing:
-    min_x: -1.60
-    min_y: -2.1
-    max_x: 2.3
-    max_y: 1.5
+   #  min_x: -1.60
+   #  min_y: -2.1
+   #  max_x: 2.3
+   #  max_y: 1.5
+    min_x: -1.0
+    min_y: -1.0
+    max_x: 1.0
+    max_y: 1.0
     recover_speed: 0.3
     buffer_len: 0.05
   simple_collvoid:

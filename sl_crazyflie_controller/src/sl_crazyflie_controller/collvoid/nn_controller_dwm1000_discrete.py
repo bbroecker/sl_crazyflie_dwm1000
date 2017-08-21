@@ -448,7 +448,7 @@ class NNControllerDWM1000Discrete(CollvoidInterface):
         else:
             dt = (rospy.Time.now() - self.last_update).to_sec()
 
-        #Firt time step
+        #First time step
         if self.last_velocity is None:
             self.last_velocity = copy.deepcopy(current_target_velocity)
         # print "nn incoming {0}".format(current_target_velocity.z)

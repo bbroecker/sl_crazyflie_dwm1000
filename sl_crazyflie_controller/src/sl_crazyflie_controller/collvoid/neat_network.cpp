@@ -32,7 +32,25 @@ NEATNode::NEATNode(std::string gf) : genomeFile(gf), NUM_DRONES(2) {
    //Distance topic Subscriber
    distance_sub = n.subscribe("/crazyflie1/log_ranges", 1000, &NEATNode::receivedDistance, this);
 
+   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_x", max_wall_x);
+   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_y", max_wall_y);
+   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/min_x", min_wall_x);
+   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/min_y", min_wall_y);
+
+   // if (n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_x", max_x)) {
+   //    std::cout << "Waayyayyoo" << std::endl;
+   //    std::cout << max_x << std::endl;
+   // } else {
+   //    std::cout << "Could not get paramter" << std::endl;
+   // }
+
+   // std::cout << min_wall_x << std::endl;
+   // std::cout << min_wall_y << std::endl;
+   // std::cout << max_wall_x << std::endl;
+   // std::cout << max_wall_y << std::endl;
+
    //Position topic Subscriber
+   wall_sub = n.subscribe("/Robot_1/pose", 1000, &NEATNode::receivedWallDist, this);
 
 }
 
@@ -53,6 +71,27 @@ void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
    //std::cout << "Min Dist: " << min_dist << std::endl;
 
    net_inputs[1] = min_dist;
+
+}
+
+//Actually this just receives the pose, but it is what I use to calculate the
+//distance to the walls
+void NEATNode::receivedWallDist(const geometry_msgs::PoseStamped& input) {
+
+   //std::cout << input.pose.position.x << std::endl;
+
+   std::vector<double> wall_distances(4);
+
+   wall_distances[0] = std::abs(max_wall_x - input.pose.position.x);    //North wall (door)
+   wall_distances[1] = std::abs(min_wall_x - input.pose.position.x);    //South wall (window)
+   wall_distances[2] = std::abs(max_wall_y - input.pose.position.y);    //West wall (couch)
+   wall_distances[3] = std::abs(min_wall_y - input.pose.position.y);    //East wall (computers)
+
+   double closest_wall = *min_element(wall_distances.begin(), wall_distances.end());
+
+   //std::cout << closest_wall << std::endl;
+
+   net_inputs[2] = closest_wall;
 
 }
 
@@ -185,7 +224,7 @@ double NEATNode::MapValueIntoActuatorRange(double value) {
 
 }
 
-
+//Main looping function
 void NEATNode::run() {
 
    ros::Rate loop_rate(1);

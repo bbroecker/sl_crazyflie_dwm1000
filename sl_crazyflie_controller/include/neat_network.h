@@ -9,6 +9,8 @@
 
 #include "crazyflie_driver/GenericLogData.h"
 
+#include "geometry_msgs/PoseStamped.h"
+
 class NEATNode {
 
 public:
@@ -20,6 +22,7 @@ public:
    static double MapValueIntoActuatorRange(double value);
 
    void receivedDistance(const crazyflie_driver::GenericLogData& input);
+   void receivedWallDist(const geometry_msgs::PoseStamped& input);
 
 private:
 
@@ -42,6 +45,9 @@ private:
    //Subscriber for distances
    ros::Subscriber distance_sub;
 
+   //Subscriber for walls
+   ros::Subscriber wall_sub;
+
    //Handle for the node
    ros::NodeHandle n;
 
@@ -55,6 +61,8 @@ private:
    static const double nn_output_ub = 1.0;
    static const double rotor_actuator_lb = -0.1;
    static const double rotor_actuator_ub = 0.1;
+
+   double max_wall_x, max_wall_y, min_wall_x, min_wall_y;
 
    //float distance;
    //float position;
