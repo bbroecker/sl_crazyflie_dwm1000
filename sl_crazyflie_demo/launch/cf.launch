@@ -17,11 +17,13 @@
 <arg name="genome_file"/>
 <arg name="external_cmd_topic" default="external_cmd"/>
 
+   <node name="neat_net_node" pkg="sl_crazyflie_controller" type="neat_network" output="screen" />
+
     <!--<param name="crazyflie/pid_rate/yaw_kp" value="200"/>-->
      <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
       <param name="uri" value="$(arg cf_uri)" />
       <param name="tf_prefix" value="$(arg prefix)" />
-      <rosparam> 
+      <rosparam>
         genericLogTopics: ["log_ranges"]
         <!--genericLogTopicFrequencies: [100]-->
         genericLogTopicFrequencies: [20]
@@ -85,6 +87,8 @@
     <node name="segment_follower" pkg="sl_crazyflie_pathfollowing" type="SegmentFollower.py" output="screen">
     	<param name="pose_topic" value="$(arg cf_pose)"/>
     </node>
+
+
 
 
   </launch>

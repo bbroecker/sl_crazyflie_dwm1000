@@ -9,10 +9,10 @@ collvoid:
    #  min_y: -2.1
    #  max_x: 2.3
    #  max_y: 1.5
-    min_x: -1.0
-    min_y: -1.0
-    max_x: 1.0
-    max_y: 1.0
+    min_x: -1.5
+    min_y: -1.5
+    max_x: 3.0
+    max_y: 1.75
     recover_speed: 0.3
     buffer_len: 0.05
   simple_collvoid:

@@ -4,8 +4,7 @@
    <!-- This was commented out before  -->
    <!--<arg name="cf2_uri" default="radio://0/10/1M" />-->
 
-  <node name="neat_net_node" pkg="sl_crazyflie_controller" type="neat_network" output="screen" />
-
+   
 
   <arg name="cf1_uri" default="radio://0/80/2M" />
   <arg name="cf2_uri" default="radio://0/10/2M" />

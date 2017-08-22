@@ -52,6 +52,7 @@ class Teleop:
 
     def joy_callback(self, joy_msg):
         if self.is_button_released('nn', joy_msg.buttons[NN]):
+            #print("Pressed Circle")
             if self.nn_active:
                 print "stop"
                 self.nn_active = False

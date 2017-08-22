@@ -19,7 +19,8 @@ from sl_crazyflie_controller.pid_controller.pid_velocity import VelocityControll
 RATE = 200.0                                    #200Hz I think
 POSE_TIME_OUT = 0.5
 CONTROLLER_RP_THRESH = 0.05
-TAKEOFF_HEIGHT = 1.6
+#TAKEOFF_HEIGHT = 1.6
+TAKEOFF_HEIGHT = 1.75
 POS_THRESHOLD = 0.04
 LAND_HEIGHT = 0.14
 LAND_VEL = -0.25

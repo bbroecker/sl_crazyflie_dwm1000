@@ -5,7 +5,9 @@
 
 #include "std_msgs/Float64MultiArray.h"
 
-NEATNode::NEATNode(std::string gf) : genomeFile(gf), NUM_DRONES(2) {
+NEATNode::NEATNode(std::string gf) : genomeFile(gf),
+                                     NUM_DRONES(2),
+                                     theta(0.0) {
 
    //Take in network from file
    readFile();
@@ -30,18 +32,18 @@ NEATNode::NEATNode(std::string gf) : genomeFile(gf), NUM_DRONES(2) {
    net_outputs_pub = n.advertise<std_msgs::Float64MultiArray>("NEAT_outputs", 1000);
 
    //Distance topic Subscriber
-   distance_sub = n.subscribe("/crazyflie1/log_ranges", 1000, &NEATNode::receivedDistance, this);
+   distance_sub = n.subscribe("log_ranges", 1000, &NEATNode::receivedDistance, this);
 
-   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_x", max_wall_x);
-   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_y", max_wall_y);
-   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/min_x", min_wall_x);
-   n.getParam("crazyflie1/flight_controller/collvoid/geofencing/min_y", min_wall_y);
+   n.getParam("flight_controller/collvoid/geofencing/max_x", max_wall_x);
+   n.getParam("flight_controller/collvoid/geofencing/max_y", max_wall_y);
+   n.getParam("flight_controller/collvoid/geofencing/min_x", min_wall_x);
+   n.getParam("flight_controller/collvoid/geofencing/min_y", min_wall_y);
 
-   // if (n.getParam("crazyflie1/flight_controller/collvoid/geofencing/max_x", max_x)) {
+   // if (n.getParam("flight_controller/collvoid/geofencing/max_x", max_wall_x)) {
    //    std::cout << "Waayyayyoo" << std::endl;
-   //    std::cout << max_x << std::endl;
+   //    std::cout << max_wall_x << std::endl;
    // } else {
-   //    std::cout << "Could not get paramter" << std::endl;
+   //    std::cout << "Could not get parameter" << std::endl;
    // }
 
    // std::cout << min_wall_x << std::endl;
@@ -50,11 +52,18 @@ NEATNode::NEATNode(std::string gf) : genomeFile(gf), NUM_DRONES(2) {
    // std::cout << max_wall_y << std::endl;
 
    //Position topic Subscriber
-   wall_sub = n.subscribe("/Robot_1/pose", 1000, &NEATNode::receivedWallDist, this);
+   //Use param from cf.launch
+
+   std::string pose_topic;
+   n.getParam("flight_controller/cf_pose_topic", pose_topic);
+   //std::cout << "Pose topic: " << pose_topic << std::endl;
+
+   //wall_sub = n.subscribe("/Robot_1/pose", 1000, &NEATNode::receivedWallDist, this);
+   wall_sub = n.subscribe(pose_topic, 1000, &NEATNode::receivedWallDist, this);
 
 }
 
-//Called when log_ranges has a new method - the distance to the other Crazyflies
+//Called when log_ranges has a new input - the distance to the other Crazyflies
 void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
 
    // std::cout << input.values[0] << std::endl;
@@ -70,7 +79,8 @@ void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
    double min_dist = *std::min_element(distances.begin(), distances.end());
    //std::cout << "Min Dist: " << min_dist << std::endl;
 
-   net_inputs[1] = min_dist;
+   //net_inputs[1] = min_dist;
+   net_inputs[1] = 1.0;
 
 }
 
@@ -90,6 +100,7 @@ void NEATNode::receivedWallDist(const geometry_msgs::PoseStamped& input) {
    double closest_wall = *min_element(wall_distances.begin(), wall_distances.end());
 
    //std::cout << closest_wall << std::endl;
+   //std::cout << max_wall_y << std::endl;
 
    net_inputs[2] = closest_wall;
 
@@ -188,6 +199,9 @@ void NEATNode::readFile() {
 
 std::vector<double> NEATNode::propogate(std::vector<float> inputs) {
 
+   //std::cout << inputs[1] << " " << inputs[2] << std::endl;
+   //std::cout << inputs[2] << std::endl;
+
    //Load input sensors
    NEATnet->load_sensors(inputs);
 
@@ -209,7 +223,14 @@ std::vector<double> NEATNode::propogate(std::vector<float> inputs) {
 
    //std::cout << std::endl;
 
-   return outputs;
+   std::vector<double> speeds(outputs.size());
+
+   speeds = GetSpeedsForActuator(outputs[0], outputs[1]);
+
+   //std::cout << "Theta: " << theta << std::endl;
+
+   //return outputs;
+   return speeds;
 
 }
 
@@ -224,10 +245,39 @@ double NEATNode::MapValueIntoActuatorRange(double value) {
 
 }
 
+std::vector<double> NEATNode::GetSpeedsForActuator(double left_speed, double right_speed) {
+
+   /* Convert left and right speeds to linVel and rotVel */
+
+   double linVel = (left_speed + right_speed) * 0.5;
+   double rotVel = (left_speed - right_speed) / 1.0;
+
+   /* Arrow method */
+
+   //Update theta
+   theta = theta + (rotVel/rotScalingFactor);
+
+   //Calculate speeds based on arrow
+   double xSpeed = linVel * cos(theta);
+   double ySpeed = linVel * sin(theta);
+   double zSpeed = 0;
+
+   //  std::cout << "xSpeed: " << xSpeed << std::endl;
+   //  std::cout << "ySpeed: " << ySpeed << std::endl;
+
+   std::vector<double> speeds;
+   speeds.push_back(xSpeed);
+   speeds.push_back(ySpeed);
+   speeds.push_back(zSpeed);
+
+   return speeds;
+
+}
+
 //Main looping function
 void NEATNode::run() {
 
-   ros::Rate loop_rate(1);
+   ros::Rate loop_rate(200);
 
    while(ros::ok()) {
 

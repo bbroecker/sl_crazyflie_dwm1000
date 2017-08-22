@@ -19,8 +19,6 @@ public:
 
    void run();
 
-   static double MapValueIntoActuatorRange(double value);
-
    void receivedDistance(const crazyflie_driver::GenericLogData& input);
    void receivedWallDist(const geometry_msgs::PoseStamped& input);
 
@@ -31,6 +29,9 @@ private:
    std::vector<double> propogate(std::vector<float> inputs);
 
    void publishOutputs();
+
+   double MapValueIntoActuatorRange(double value);
+   std::vector<double> GetSpeedsForActuator(double left_speed, double right_speed);
 
 
    NEAT::Genome* genom;
@@ -59,15 +60,18 @@ private:
 
    static const double nn_output_lb = 0.0;
    static const double nn_output_ub = 1.0;
-   static const double rotor_actuator_lb = -0.1;
-   static const double rotor_actuator_ub = 0.1;
+   static const double rotor_actuator_lb = -0.2;
+   static const double rotor_actuator_ub = 0.2;
 
    double max_wall_x, max_wall_y, min_wall_x, min_wall_y;
 
-   //float distance;
-   //float position;
-
    const int NUM_DRONES;
+
+   //Theta used for rotating velocity
+   double theta;
+
+   static const double rotScalingFactor = 7.0;
+   //static const double rotScalingFactor = 10.0;
 
 };
 

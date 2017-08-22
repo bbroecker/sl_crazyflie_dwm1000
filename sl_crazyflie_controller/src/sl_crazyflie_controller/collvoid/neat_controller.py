@@ -3,6 +3,8 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 from collvoid_interface import CollvoidInterface
 import copy
+from std_srvs.srv import Empty, EmptyResponse
+from std_msgs.msg import Float64MultiArray
 
 class NEATController(CollvoidInterface):
 
@@ -15,16 +17,22 @@ class NEATController(CollvoidInterface):
 
         #self.update_rate
         self.last_velocity = None
-        self.last_update = None
-        self.goal_pose = None
+        #self.last_update = None
+        #self.goal_pose = None
+        self.enabled = False
 
-        #Subscribing to a topic called "goal_pose"
-        rospy.Subscriber("goal_pose", PoseStamped, self.goal_pose_callback)
+        #rospy.Subscriber("/NEAT_outputs", Float64MultiArray, self.network_outputs_received)
+        #rospy.Subscriber("/crazyflie1/NEAT_outputs", Float64MultiArray, self.network_outputs_received)
+        rospy.Subscriber("NEAT_outputs", Float64MultiArray, self.network_outputs_received)
+
+        #Services to start and stop the network control
+        self.start_nn_controller_srvs = rospy.Service("start_nn_controller", Empty, self.start_callback)
+        self.stop_nn_controller_srvs = rospy.Service("stop_nn_controller", Empty, self.stop_callback)
 
 
     def calculate_velocity(self, current_target_velocity):
 
-        print("Calculating velocity")
+        #print("Calculating velocity")
 
         #Update dt
         # if self.last_update is None:        #Just for first time step I think
@@ -33,47 +41,54 @@ class NEATController(CollvoidInterface):
         #     dt = (rospy.Time.now() - self.last_update).to_sec()
 
         #Check last velocity is not none
-        #if self.last_velocity is None:
-        #    self.last_velocity = copy.deepcopy(current_target_velocity)
+        if self.last_velocity is None:
+           self.last_velocity = copy.deepcopy(current_target_velocity)
 
-        # if (dt >= 1.0 / self.update_rate) and self.goal_pose is not None:
-        #     self.last_velocity.x = 0.0
-        #     self.last_velocity.y = 0.0
-        #     self.last_velocity.z = 0.0
-
-        #if self.goal_pose is not None:
-        #    self.last_velocity.x = 0.0
-        #    self.last_velocity.y = 0.0
-        #    self.last_velocity.z = 0.0
+        #Set network output as speeds
+        self.last_velocity.x = self.x_speed
+        self.last_velocity.y = self.y_speed
+        self.last_velocity.z = 0.0
 
         #print(self.last_velocity)
 
         # self.last_velocity.x = 0.0
         # self.last_velocity.y = 0.0
-        # self.last_velocity.z = 0.0
+        # self.last_velocity.z = -0.1
 
-        print(current_target_velocity)
-        #return self.last_velocity
-        return current_target_velocity
+        return self.last_velocity
 
-        #TESTING
-
-        # vel = copy.deepcopy(current_target_velocity)
-        # print(vel)
-        #
-        # vel.x = 0.0
-        # vel.y = 0.0
-        # vel.z = 0.0
-
-        #return vel
 
     def is_active(self):
 
-        print("Is active")
+        #print("Am I active?")
 
-        return True
+        return self.enabled
+
+    #Called when 'start_nn_controller' srv receives something
+    #Starts the controller
+    def start_callback(self, req):
+        print "Start Network"
+        self.enabled = True
+        return EmptyResponse()
+
+    #Called when 'top_nn_controller' srv receives something
+    #Stops the controller
+    def stop_callback(self, req):
+        print "Stop Network"
+        self.enabled = False
+        #self.goal_pose = None
+        #self.last_update = None
+        #self.avg_buffer = collections.deque(maxlen=self.avg_buffer_size)
+        #self.nn.reset()
+        return EmptyResponse()
+
+    def network_outputs_received(self, input):
+        #print("Network output received")
+        #print(input.data)
+        self.x_speed = input.data[0]
+        self.y_speed = input.data[1]
 
     #Called when topic 'goal_pose' receives something
     #Just sets the goal pose in this class
-    def goal_pose_callback(self, pose):
-        self.goal_pose = pose
+    # def goal_pose_callback(self, pose):
+    #     self.goal_pose = pose
