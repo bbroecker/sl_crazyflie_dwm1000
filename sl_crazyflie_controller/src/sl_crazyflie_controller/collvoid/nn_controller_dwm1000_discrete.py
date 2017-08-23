@@ -377,7 +377,7 @@ class NNControllerDWM1000Discrete(CollvoidInterface):
             ot = ObstacleTime(obs, rospy.Time.now())
             self.last_pose_dict[obs.id] = ot
 
-    #Can't find what calls this yet
+    #Called from collvoid_controller.py
     def update_cf_pose(self, pose):
         self.current_pose = pose
         self.current_obstacles = []

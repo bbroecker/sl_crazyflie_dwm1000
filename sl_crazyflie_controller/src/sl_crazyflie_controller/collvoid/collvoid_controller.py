@@ -29,9 +29,11 @@ class CollvoidController:
         new_vel = current_velocity
         for behaviour in self.controllers:
             assert isinstance(behaviour, CollvoidInterface)
+            #Updates current pose regardless of whether behaviour is active
             behaviour.update_cf_pose(current_pose)
             if behaviour.is_active():
                 active = True
+                #Only calculates velocity if behaviour is active
                 new_vel = behaviour.calculate_velocity(current_velocity)
                 break
         return active, new_vel

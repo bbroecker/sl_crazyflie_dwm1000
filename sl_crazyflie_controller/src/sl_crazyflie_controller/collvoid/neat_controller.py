@@ -18,7 +18,8 @@ class NEATController(CollvoidInterface):
         #self.update_rate
         self.last_velocity = None
         #self.last_update = None
-        #self.goal_pose = None
+        self.current_pose = None
+        self.goal_pose = None
         self.enabled = False
 
         #rospy.Subscriber("/NEAT_outputs", Float64MultiArray, self.network_outputs_received)
@@ -28,6 +29,8 @@ class NEATController(CollvoidInterface):
         #Services to start and stop the network control
         self.start_nn_controller_srvs = rospy.Service("start_nn_controller", Empty, self.start_callback)
         self.stop_nn_controller_srvs = rospy.Service("stop_nn_controller", Empty, self.stop_callback)
+
+        rospy.Subscriber("goal_pose", PoseStamped, self.goal_pose_callback)
 
 
     def calculate_velocity(self, current_target_velocity):
@@ -41,19 +44,15 @@ class NEATController(CollvoidInterface):
         #     dt = (rospy.Time.now() - self.last_update).to_sec()
 
         #Check last velocity is not none
-        if self.last_velocity is None:
-           self.last_velocity = copy.deepcopy(current_target_velocity)
+        #if self.last_velocity is None:
+        self.last_velocity = copy.deepcopy(current_target_velocity)
 
         #Set network output as speeds
         self.last_velocity.x = self.x_speed
         self.last_velocity.y = self.y_speed
-        self.last_velocity.z = 0.0
+        #self.last_velocity.z = 0.0
 
         #print(self.last_velocity)
-
-        # self.last_velocity.x = 0.0
-        # self.last_velocity.y = 0.0
-        # self.last_velocity.z = -0.1
 
         return self.last_velocity
 
@@ -90,5 +89,10 @@ class NEATController(CollvoidInterface):
 
     #Called when topic 'goal_pose' receives something
     #Just sets the goal pose in this class
-    # def goal_pose_callback(self, pose):
-    #     self.goal_pose = pose
+    def goal_pose_callback(self, pose):
+        #print(pose)
+        self.goal_pose = pose
+
+    def update_cf_pose(self, pose):
+        #print("Update current pose")
+        self.current_pose = pose

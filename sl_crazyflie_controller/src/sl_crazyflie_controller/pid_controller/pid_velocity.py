@@ -289,6 +289,7 @@ class VelocityController(object):
             self.target_climb_rate_list.pop(0)
         target_climb_rate = float(sum(self.target_climb_rate_list)) / len(self.target_climb_rate_list)
 
+        self.prev_altitude = current_altitude if self.prev_altitude is None else self.prev_altitude
         current_climb_rate = (current_altitude - self.prev_altitude) / dt
 
 
@@ -421,5 +422,3 @@ class VelocityController(object):
         self.pid_xy_roll.set_pid_parameters(self.kp_y_vel, self.ki_y_vel, self.kd_y_vel, self.max_y_vel_d_filter)
 
         self.pid_yaw_angle_speed.set_pid_parameters(self.kp_yaw_vel, self.ki_yaw_vel, self.kd_yaw_vel, self.max_yaw_vel_d_filter)
-
-

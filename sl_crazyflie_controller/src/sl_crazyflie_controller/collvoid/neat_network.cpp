@@ -79,8 +79,8 @@ void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
    double min_dist = *std::min_element(distances.begin(), distances.end());
    //std::cout << "Min Dist: " << min_dist << std::endl;
 
-   //net_inputs[1] = min_dist;
-   net_inputs[1] = 1.0;
+   net_inputs[1] = min_dist;
+   //net_inputs[1] = 1.0;
 
 }
 
@@ -199,7 +199,7 @@ void NEATNode::readFile() {
 
 std::vector<double> NEATNode::propogate(std::vector<float> inputs) {
 
-   //std::cout << inputs[1] << " " << inputs[2] << std::endl;
+   std::cout << inputs[1] << " " << inputs[2] << std::endl;
    //std::cout << inputs[2] << std::endl;
 
    //Load input sensors
@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
    ros::init(argc, argv, "neat_net_node");
 
    //Genome file as argument
-   NEATNode neat_node = NEATNode("/home/james/catkin_ws/src/sl_crazyflie_dwm1000/sl_crazyflie_controller/src/sl_crazyflie_controller/collvoid/genomes/overall_winner_1");
+   NEATNode neat_node = NEATNode("/home/james/catkin_ws/src/sl_crazyflie_dwm1000/sl_crazyflie_controller/src/sl_crazyflie_controller/collvoid/genomes/overall_winner_3h");
    neat_node.run();
 
 }
