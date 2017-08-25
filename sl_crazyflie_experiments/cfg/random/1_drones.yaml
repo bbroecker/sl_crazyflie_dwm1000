@@ -8,7 +8,5 @@ random_coordinator:
   goal_distance: 0.3
   pose_topics:
     - "/Robot_1/pose"
-    - "/Robot_2/pose"
   namespaces:
     - "/crazyflie1"
-    - "/crazyflie2"

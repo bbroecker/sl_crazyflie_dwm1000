@@ -28,7 +28,7 @@ import threading
 NUM_ACTIONS = 10
 import collections
 
-NN_GOAL_DISTANCE_OFFSET = 0.0
+NN_GOAL_DISTANCE_OFFSET = 0.2
 
 
 # NN_GOAL_DISTANCE_OFFSET = 0.0
@@ -561,13 +561,15 @@ class NNControllerDWM1000DiscreteParticleMulti(CollvoidInterface):
     def publish_obs_particles(self):
         pose_array = PoseArray()
         pose_array.header.frame_id = self.cf_frame_id
-        for p in self.nn.angle_networks_wrapper.get_obs_particles():
-            pose = Pose()
-            pose.position.x = p.x
-            pose.position.y = p.y
-            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternon_from_yaw(p.yaw)
-            pose_array.poses.append(pose)
-        self.pre_obs_particle_pub.publish(pose_array)
+        l = self.nn.angle_networks_wrapper.get_obs_particles()
+        if l is not None:
+            for p in self.nn.angle_networks_wrapper.get_obs_particles():
+                pose = Pose()
+                pose.position.x = p.x
+                pose.position.y = p.y
+                pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = quaternon_from_yaw(p.yaw)
+                pose_array.poses.append(pose)
+            self.pre_obs_particle_pub.publish(pose_array)
 
     # calculates the new target velocity based on the collvoid scheme
     # target_Velocity is the current target velocity towards the goal

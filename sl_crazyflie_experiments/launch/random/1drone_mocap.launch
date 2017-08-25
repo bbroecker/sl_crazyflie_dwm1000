@@ -46,30 +46,16 @@
     </include>
     </group>
 
-    <group ns="$(arg cf2_prefix)">
-    <!--<node name="nn_teleop" pkg="sl_crazyflie_controller" type="nn_teleop_switch_places.py" output="screen" >-->
-            <!--<param name="switch_with_id" value="1" />-->
-    <!--</node>-->
-    <include file="$(find sl_crazyflie_demo)/launch/cf.launch">
-        <arg name="cf_uri" value="$(arg cf2_uri)" />
-        <arg name="obstacle_manager_id" value="2" />
-        <arg name="collvoid_file" value="$(arg collvoid_file)" />
-        <arg name="cf_pose" value="$(arg cf2_pose)" />
-        <arg name="cf_frame_id" value="$(arg cf2_frame_id)" />
-        <arg name="prefix" value="$(arg cf2_prefix)" />
-        <arg name="wand_topic" default="$(arg wand_topic)" />
-        <arg name="wand_frame_id" default="$(arg wand_frame_id)" />
-    </include>
-    </group>
 
-  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap_2.rviz" />
+
+  <node pkg="rviz" type="rviz" name="rviz" args="-d $(find sl_crazyflie_demo)/rviz/cf_mocap.rviz" />
 
 
 
 <node name="teleop" pkg="sl_crazyflie_experiments" type="nn_teleop_random.py" output="screen" >
   </node>
    <node name="crazyflie_experiments" pkg="sl_crazyflie_experiments" type="random_coordinator.py" output="screen" >
-        <rosparam command="load" file="$(find sl_crazyflie_experiments)/cfg/random/2_drones.yaml"/>
+        <rosparam command="load" file="$(find sl_crazyflie_experiments)/cfg/random/1_drones.yaml"/>
   </node>
 
 

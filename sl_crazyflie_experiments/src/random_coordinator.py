@@ -109,7 +109,7 @@ class RandomCoordinator:
         found_solution = False
         while not found_solution:
             self.drone_info[drone_id].goal_pose.pose.position.x = np.random.uniform(self.border_x_min, self.border_x_max)
-            self.drone_info[drone_id].goal_pose.pose.position.y = np.random.uniform(self.border_x_min, self.border_x_max)
+            self.drone_info[drone_id].goal_pose.pose.position.y = np.random.uniform(self.border_y_min, self.border_y_max)
             found_solution = True
             for i in range(len(self.drone_info)):
                 if i == drone_id or self.drone_info[i].goal_pose is None:

@@ -63,8 +63,8 @@ class DWM10000DistanceSensor:
         state = int(data.values[-1])
         current_id = 1
         for idx, current_distance in enumerate(ranges):
-            if idx is self.my_id:
-                current_id += 1
+            # if idx is self.my_id:
+            #     current_id += 1
                 # for idx, current_distance in enumerate(ranges):
             # is unvalid if distance == 0
             valid = (state & (1 << idx)) != 0

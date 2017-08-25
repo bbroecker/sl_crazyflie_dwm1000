@@ -9,6 +9,8 @@ random_coordinator:
   pose_topics:
     - "/Robot_1/pose"
     - "/Robot_2/pose"
+    - "/Robot_3/pose"
   namespaces:
     - "/crazyflie1"
     - "/crazyflie2"
+    - "/crazyflie3"
