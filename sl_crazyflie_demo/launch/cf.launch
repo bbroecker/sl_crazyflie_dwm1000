@@ -80,6 +80,7 @@
         <rosparam param="collvoid/nn_controller_dwm1000/dwm1000_obstacle_ids" subst_value="true">$(arg dwm1000_obstacle_ids)</rosparam>
 	    <param name="collvoid/nn_controller_dwm1000/dwm_distance_offset" value="$(arg dwm_distance_offset)"/>
 	    <!--param name="collvoid/Genome_file" value="$(arg genome_file)"/-->
+       <param name="tf_prefix" value="$(arg prefix)" />
 
     </node>
 

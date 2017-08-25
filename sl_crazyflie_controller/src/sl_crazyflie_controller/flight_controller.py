@@ -110,7 +110,7 @@ class FlightController:
 
             #print"Flight mode: ", self.mode_manager.current_flightmode.id
 
-            cmd_vel = Twist()
+            cmd_vel  Twist()
             if self.mode_manager.current_flightmode.id in POS_CTRL_MODES:
 
                 if self.pid_tune_movement_active():

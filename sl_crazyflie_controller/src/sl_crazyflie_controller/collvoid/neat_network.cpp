@@ -61,13 +61,46 @@ NEATNode::NEATNode(std::string gf) : genomeFile(gf),
    //wall_sub = n.subscribe("/Robot_1/pose", 1000, &NEATNode::receivedWallDist, this);
    wall_sub = n.subscribe(pose_topic, 1000, &NEATNode::receivedWallDist, this);
 
+   //Get drone ID
+   std::string prefix;
+   n.getParam("flight_controller/tf_prefix", prefix);
+   //std::cout << "Prefix: " << prefix << std::endl;
+   drone_ID = (int)*prefix.rbegin() - 49;
+   std::cout << "Crazyflie: " << drone_ID << " network intialised" << std::endl;
+
+   //net_inputs[1] = 1.022;
+   //net_inputs[2] = 1.13;
 }
 
 //Called when log_ranges has a new input - the distance to the other Crazyflies
 void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
 
-   // std::cout << input.values[0] << std::endl;
+   //New protocol
+
+   // // std::cout << input.values[0] << std::endl;
+   // //
+   // std::vector<double> distances;
    //
+   // for(int i = 0; i < NUM_DRONES; i++) {
+   //
+   //    if(drone_ID != i) {
+   //
+   //       distances.push_back(input.values[i]);
+   //
+   //    }
+   //
+   // }
+   //
+   // double min_dist = *std::min_element(distances.begin(), distances.end());
+   // //if(drone_ID==0)std::cout << "Closest drone: " << min_dist << std::endl;
+   //
+   // net_inputs[1] = min_dist;
+   // //net_inputs[1] = 1.0;
+
+   //Old protocol
+
+   //std::cout << input.values[0] << std::endl;
+
    std::vector<double> distances(NUM_DRONES-1);
 
    for(int i = 0; i < (NUM_DRONES-1); i++) {
@@ -77,10 +110,11 @@ void NEATNode::receivedDistance(const crazyflie_driver::GenericLogData& input) {
    }
 
    double min_dist = *std::min_element(distances.begin(), distances.end());
-   //std::cout << "Min Dist: " << min_dist << std::endl;
+   //if(drone_ID==1)std::cout << "Min Dist: " << min_dist << std::endl;
 
    net_inputs[1] = min_dist;
    //net_inputs[1] = 1.0;
+   //net_inputs[1] = 1.022;
 
 }
 
@@ -103,6 +137,7 @@ void NEATNode::receivedWallDist(const geometry_msgs::PoseStamped& input) {
    //std::cout << max_wall_y << std::endl;
 
    net_inputs[2] = closest_wall;
+   //net_inputs[2] = 1.13;
 
 }
 
@@ -199,7 +234,7 @@ void NEATNode::readFile() {
 
 std::vector<double> NEATNode::propogate(std::vector<float> inputs) {
 
-   std::cout << inputs[1] << " " << inputs[2] << std::endl;
+   //std::cout <<"drone: "<<drone_ID<<" "<< inputs[1] << " " << inputs[2] << std::endl;
    //std::cout << inputs[2] << std::endl;
 
    //Load input sensors
@@ -250,7 +285,7 @@ std::vector<double> NEATNode::GetSpeedsForActuator(double left_speed, double rig
    /* Convert left and right speeds to linVel and rotVel */
 
    double linVel = (left_speed + right_speed) * 0.5;
-   double rotVel = (left_speed - right_speed) / 1.0;
+   double rotVel = (left_speed - right_speed) / 1.0;     //Could put rotScalingFactor here
 
    /* Arrow method */
 
@@ -277,7 +312,7 @@ std::vector<double> NEATNode::GetSpeedsForActuator(double left_speed, double rig
 //Main looping function
 void NEATNode::run() {
 
-   ros::Rate loop_rate(200);
+   ros::Rate loop_rate(10);
 
    while(ros::ok()) {
 
@@ -307,7 +342,7 @@ int main(int argc, char **argv) {
    ros::init(argc, argv, "neat_net_node");
 
    //Genome file as argument
-   NEATNode neat_node = NEATNode("/home/james/catkin_ws/src/sl_crazyflie_dwm1000/sl_crazyflie_controller/src/sl_crazyflie_controller/collvoid/genomes/overall_winner_3h");
+   NEATNode neat_node = NEATNode("/home/james/catkin_ws/src/sl_crazyflie_dwm1000/sl_crazyflie_controller/src/sl_crazyflie_controller/collvoid/genomes/overall_winner_4");
    neat_node.run();
 
 }

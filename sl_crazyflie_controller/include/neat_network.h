@@ -60,8 +60,8 @@ private:
 
    static const double nn_output_lb = 0.0;
    static const double nn_output_ub = 1.0;
-   static const double rotor_actuator_lb = -0.1;
-   static const double rotor_actuator_ub = 0.1;
+   static const double rotor_actuator_lb = -0.3;
+   static const double rotor_actuator_ub = 0.3;
 
    double max_wall_x, max_wall_y, min_wall_x, min_wall_y;
 
@@ -71,7 +71,10 @@ private:
    double theta;
 
    //static const double rotScalingFactor = 7.0;
-   static const double rotScalingFactor = 10.0;
+   //static const double rotScalingFactor = 10.0;
+   static const double rotScalingFactor = 2.3;
+
+   int drone_ID;
 
 };
 

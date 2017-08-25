@@ -168,6 +168,11 @@ class VelocityController(object):
         x = 0
         y = 0
 
+        if self.last_yaw is None:
+            self.last_yaw = current_yaw
+        if self.prev_position is None:
+            self.prev_position = current_position
+
         # try to avoid gitter
         diff_angle = limit_angle(current_yaw - self.last_yaw)
         # if diff_angle > math.pi / 2:
@@ -257,6 +262,9 @@ class VelocityController(object):
     def update_yaw(self, current_yaw, target_speed, dt):
         assert isinstance(target_speed, Velocity)
         target_angle_speed = target_speed.yaw
+
+        if self.last_yaw is None:
+            self.last_yaw = current_yaw
 
         current_angle_speed = limit_angle(current_yaw - self.last_yaw) / dt
 
