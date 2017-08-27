@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from sensor_msgs.msg import Joy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from sl_crazyflie_srvs.srv import ChangeFlightMode, ChangeFlightModeRequest
 from std_srvs.srv import Empty
 import math
@@ -15,6 +15,8 @@ DEADMAN_SWITCH = 10
 DISARM = 14
 THROW = 12
 MANUAL = 15
+FIXED_HEIGHT = 1.5
+FIXED_HEIGHT_BUTTON = 11
 
 
 def map_value(value, in_min, in_max, out_min, out_max):
@@ -44,6 +46,7 @@ class Teleop:
 
         self.current_flight_mode_id = None
         self.controller_active = False
+        self.fixed_height_active = False
 
         self.axes = {}
         self.axes["x"] = {"axis": 0, "max": 2}
@@ -86,6 +89,11 @@ class Teleop:
         msg = TargetMsg()
         msg.target_velocity = vel
         msg.control_mode.x_mode = msg.control_mode.y_mode = msg.control_mode.z_mode = msg.control_mode.yaw_mode = ControlMode.VELOCITY
+        if self.fixed_height_active:
+            msg.control_mode.z_mode = ControlMode.POSITION
+            msg.target_pose = PoseStamped()
+            msg.target_pose.pose.position.z = FIXED_HEIGHT
+
         return msg
 
     def joy_callback(self, joy_msg):
@@ -140,6 +148,11 @@ class Teleop:
             self.controller_active = False
             if not self.pid_tuning_active:
                 ch_flm.mode.id = self.mode_id_backup
+
+        if joy_msgs.buttons[FIXED_HEIGHT_BUTTON]:
+            self.fixed_height_active = True
+        else:
+            self.fixed_height_active = False
 
         if self.is_button_released('throw', joy_msgs.buttons[THROW]):
             if self.current_flight_mode_id is not FlightMode.THROW_LAUNCH:
