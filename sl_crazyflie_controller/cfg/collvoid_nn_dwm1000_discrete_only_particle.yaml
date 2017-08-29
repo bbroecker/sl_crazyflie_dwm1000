@@ -29,7 +29,7 @@ collvoid:
     min_speed_limit: 0.2
     speed_limit_max_distance: 1.5
     speed_limit_min_distance: 0.45
-    spawn_new_goal_samples: 0.1
-    spawn_new_obs_samples: 0.1
-    obs_samples_size: 70
-    goal_samples_size: 30
+    spawn_new_goal_samples: 0.0
+    spawn_new_obs_samples: 0.0
+    obs_samples_size: 900
+    goal_samples_size: 900

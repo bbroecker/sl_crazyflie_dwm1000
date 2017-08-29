@@ -5,6 +5,7 @@ random_coordinator:
     max_x: 1.5
     max_y: 0.2
   secure_distance: 0.3
+  timeout: 90
   goal_distance: 0.25
   pose_topics:
     - "/Robot_1/pose"

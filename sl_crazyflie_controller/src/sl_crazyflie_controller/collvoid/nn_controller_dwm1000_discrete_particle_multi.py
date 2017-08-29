@@ -78,8 +78,11 @@ def translate(value, leftMin, leftMax, rightMin, rightMax):
     valueScaled = float(value - leftMin) / float(leftSpan)
 
     # Convert the 0-1 range into a value in the right range.
-    return rightMin + (valueScaled * rightSpan)
+    output = rightMin + (valueScaled * rightSpan)
+    output = max(output, rightMin)
+    output = min(output, rightMax)
 
+    return output
 
 def wrap_angle(angle):
     while angle > np.pi:
@@ -103,7 +106,7 @@ def get_yaw_from_msg(msg):
 
 
 class NNMovementWrapper:
-    def __init__(self, movement_cfg, angle_cfg):
+    def __init__(self, movement_cfg, angle_cfg, frame_id):
         movement_cfg.epsilon = 0.0
         self.movement_cfg = movement_cfg
         self.angle_cfg = angle_cfg
@@ -142,7 +145,7 @@ class NNMovementWrapper:
         self.network_movement.load_weight(self.sess)
         self.angle_predict_network.load_weight(self.sess)
         self.angle_networks_wrapper = AngleNetworkWrapper(self.sess, self.angle_predict_network, 3, ObstacleCfg(),
-                                                          GoalCfg())
+                                                          GoalCfg(), frame_id)
         self.rnn_movement_state = self.network_movement.gen_init_state(self.sess, 1)
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt, goal_offset = None):
@@ -322,12 +325,12 @@ class NNControllerDWM1000DiscreteParticleMulti(CollvoidInterface):
         if self.dwm_goal_active or self.dwm1000_active or self.dwm_obstacle_active:
             self.dwm_distance_offset = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm_distance_offset")
         self.movement_cfg_predict = NNConfigMovement(movement_config_file)
-        self.movement_cfg_predict.speed_limit = 0.7
+        self.movement_cfg_predict.speed_limit = 0.5
         self.movement_cfg_predict.keep_prob = 1.0
         self.angle_cfg_predict = NNConfigAngle(angle_config_file)
         self.angle_cfg_predict.keep_prob = 1.0
         self.accuracy_list = []
-        self.nn = NNMovementWrapper(self.movement_cfg_predict, self.angle_cfg_predict)
+        self.nn = NNMovementWrapper(self.movement_cfg_predict, self.angle_cfg_predict, self.cf_frame_id)
         self.update_rate = self.movement_cfg_predict.update_rate
         self.max_velocity = self.movement_cfg_predict.max_velocity
         self.max_sensor_distance = self.movement_cfg_predict.max_sensor_distance

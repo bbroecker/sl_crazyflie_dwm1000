@@ -79,5 +79,7 @@ class DWM10000DistanceSensor:
                 self.sensor_data[current_id].distance.append(current_distance + self.distance_offset)
                 # print current_id, self.sensor_data[current_id].distance
                 self.sensor_data[current_id].last_update = rospy.Time.now()
+                # print "my id: {} cur id: {} range {} valid {}".format(self.my_id, current_id, current_distance, valid)
+
             current_id += 1
         # print self.get_distance(2)

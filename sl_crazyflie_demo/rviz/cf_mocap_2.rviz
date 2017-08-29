@@ -6,6 +6,8 @@ Panels:
       Expanded:
         - /Pose1
         - /Pose2
+        - /PoseArray1
+        - /Pose3
       Splitter Ratio: 0.362816
     Tree Height: 889
   - Class: rviz/Selection
@@ -68,6 +70,8 @@ Visualization Manager:
           Value: true
         Robot_3/base_link:
           Value: true
+        Robot_4/base_link:
+          Value: true
         world:
           Value: true
       Marker Scale: 1
@@ -82,6 +86,8 @@ Visualization Manager:
           Robot_2/base_link:
             {}
           Robot_3/base_link:
+            {}
+          Robot_4/base_link:
             {}
       Update Interval: 0
       Value: true
@@ -120,7 +126,7 @@ Visualization Manager:
       Color: 255; 25; 0
       Enabled: true
       Name: PoseArray
-      Topic: /crazyflie1/obs_particle
+      Topic: /crazyflie1/goal_particle
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -135,7 +141,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05
       Shape: Arrow
-      Topic: /crazyflie2/goal_pose
+      Topic: /crazyflie1/predict_goal_particle
       Unreliable: false
       Value: true
   Enabled: true
@@ -170,7 +176,7 @@ Visualization Manager:
         Value: false
       Name: Current View
       Near Clip Distance: 0.01
-      Scale: 135.523
+      Scale: 120.675
       Target Frame: <Fixed Frame>
       Value: TopDownOrtho (rviz)
       X: 0.00179086
@@ -192,5 +198,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 958
-  X: 1921
+  X: 1
   Y: 20

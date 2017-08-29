@@ -52,6 +52,7 @@ class RandomCoordinator:
         self.border_y_max = rospy.get_param("~random_coordinator/border/max_y")
         self.secure_distance = rospy.get_param("~random_coordinator/secure_distance")
         self.goal_distance = rospy.get_param("~random_coordinator/goal_distance")
+        self.timeout = rospy.get_param("~random_coordinator/timeout")
 
         # self.buffer = rospy.get_param("~random_walk/buffer_len")
 
@@ -64,8 +65,10 @@ class RandomCoordinator:
         self.goal_publishers = []
         self.start_nn = []
         self.stop_nn = []
+        self.goal_changed = []
         self.goal_counter_publisher = []
         self.is_running = False
+        self.start_time = None
         rospy.Service("/toggle_random_coordinator", Empty, self.toggle_coordinator)
         for i in range(len(self.drone_pose_topics)):
             rospy.logwarn(self.drone_pose_topics[i])
@@ -73,6 +76,7 @@ class RandomCoordinator:
             self.goal_publishers.append(rospy.Publisher(self.drone_ns[i] + "/goal_pose", PoseStamped, queue_size=1))
             self.start_nn.append(rospy.ServiceProxy(self.drone_ns[i] + "/start_nn_controller", Empty))
             self.stop_nn.append(rospy.ServiceProxy(self.drone_ns[i] + "/stop_nn_controller", Empty))
+            self.goal_changed.append(rospy.ServiceProxy(self.drone_ns[i] + "/goal_changed", Empty))
             self.goal_counter_publisher.append(rospy.Publisher(self.drone_ns[i] + "/goal_counter", Int32, queue_size=1))
             self.drone_info.append(DroneInfo(i))
         self.last_pose = None
@@ -80,6 +84,9 @@ class RandomCoordinator:
 
         while not rospy.is_shutdown():
             if self.is_running:
+                if (rospy.Time.now() - self.start_time).to_sec() > self.timeout:
+                    self.is_running = False
+                    self.stop_walk()
                 self.publish_goal_poses()
                 self.publish_goal_counter()
             rate.sleep()
@@ -117,6 +124,7 @@ class RandomCoordinator:
                 if distance_pose(self.drone_info[drone_id].goal_pose, self.drone_info[i].goal_pose) <= self.secure_distance:
                     found_solution = False
                     break
+        self.goal_changed[drone_id].call()
 
     def pose_cb(self, pose, drone_id):
         self.drone_info[drone_id].drone_pose = pose
@@ -128,15 +136,20 @@ class RandomCoordinator:
     def toggle_coordinator(self, req):
         self.is_running = not self.is_running
         if self.is_running:
+            self.start_time = rospy.Time.now()
             for i in range(len(self.drone_info)):
                 self.drone_info[i].goal_counter = 0
                 self.generate_new_pose(i)
             for i in range(len(self.drone_info)):
                 self.start_nn[i].call()
         else:
-            for i in range(len(self.drone_info)):
-                self.stop_nn[i].call()
+            self.stop_walk()
         return EmptyResponse()
+
+    def stop_walk(self):
+        self.start_time = None
+        for i in range(len(self.drone_info)):
+            self.stop_nn[i].call()
 
 
 if __name__ == '__main__':
