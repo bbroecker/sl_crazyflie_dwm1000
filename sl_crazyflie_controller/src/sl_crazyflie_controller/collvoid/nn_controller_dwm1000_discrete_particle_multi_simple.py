@@ -6,6 +6,7 @@ from time import sleep
 import rospy
 from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 from sl_crazyflie_msgs.msg import Velocity, Obstacle
+from std_msgs.msg import Float32
 from std_srvs.srv import Empty, EmptyResponse
 from tf import transformations
 
@@ -32,40 +33,40 @@ GOAL_OFFSET_PARTICLE = 0.0
 
 # NN_GOAL_DISTANCE_OFFSET = 0.0
 
-class ObstacleCfg(ParticleFilter2_5D_Cfg):
-    def __init__(self):
-        super(ObstacleCfg, self).__init__()
-        self.sample_size = 70
-        self.x_limit = [-2.0, 2.0]
-        self.resample_x_limit = [-0.2, 0.2]
-        self.y_limit = [-2.0, 2.0]
-        self.resample_y_limit = [-0.2, 0.2]
-        self.yaw_limit = [-np.pi, np.pi]
-        self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
-        self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
-        self.respawn_y_limit = [-0.01, 0.01]
-        self.respawn_x_limit = [-0.01, 0.01]
-        self.new_spawn_samples = 0.1
-        self.resample_prob = 0.95
-
-
-class GoalCfg(ParticleFilter2_5D_Cfg):
-    def __init__(self):
-        super(GoalCfg, self).__init__()
-        self.sample_size = 30
-        self.x_limit = [-2.0, 2.0]
-        self.resample_x_limit = [-0.05, 0.05]
-        self.y_limit = [-2.0, 2.0]
-        self.resample_y_limit = [-0.05, 0.05]
-        self.yaw_limit = [-np.pi, np.pi]
-        self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
-        self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
-        self.respawn_y_limit = [-0.01, 0.01]
-        self.respawn_x_limit = [-0.01, 0.01]
-        self.new_spawn_samples = 0.10
-        self.resample_prob = 0.95
-        self.variance = 0.0312979988458
-        # self.variance = 0.3
+# class ObstacleCfg(ParticleFilter2_5D_Cfg):
+#     def __init__(self):
+#         super(ObstacleCfg, self).__init__()
+#         self.sample_size = 100
+#         self.x_limit = [-2.0, 2.0]
+#         self.resample_x_limit = [-0.1, 0.1]
+#         self.y_limit = [-2.0, 2.0]
+#         self.resample_y_limit = [-0.1, 0.1]
+#         self.yaw_limit = [-np.pi, np.pi]
+#         self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+#         self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+#         self.respawn_y_limit = [-0.1, 0.1]
+#         self.respawn_x_limit = [-0.1, 0.1]
+#         self.new_spawn_samples = 0.1
+#         self.resample_prob = 0.95
+#
+#
+# class GoalCfg(ParticleFilter2_5D_Cfg):
+#     def __init__(self):
+#         super(GoalCfg, self).__init__()
+#         self.sample_size = 30
+#         self.x_limit = [-2.0, 2.0]
+#         self.resample_x_limit = [-0.05, 0.05]
+#         self.y_limit = [-2.0, 2.0]
+#         self.resample_y_limit = [-0.05, 0.05]
+#         self.yaw_limit = [-np.pi, np.pi]
+#         self.resample_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+#         self.respawn_yaw_limit = [-np.pi * 0.1, np.pi * 0.1]
+#         self.respawn_y_limit = [-0.01, 0.01]
+#         self.respawn_x_limit = [-0.01, 0.01]
+#         self.new_spawn_samples = 0.10
+#         self.resample_prob = 0.95
+#         self.variance = 0.0312979988458
+#         # self.variance = 0.3
 
 
 def translate(value, leftMin, leftMax, rightMin, rightMax):
@@ -154,16 +155,53 @@ class NNMovementWrapper:
         print('Loading Movement Model...')
         self.network_movement.load_weight(self.sess)
         self.angle_predict_network.load_weight(self.sess)
-        obs_cfg = ObstacleCfg()
-        obs_cfg.sample_size = self.obs_samples_size
-        obs_cfg.new_spawn_samples = self.spawn_new_obs_samples
+        obs_cfg = self.create_obs_cfg_parameter()
 
-        goal_cfg = GoalCfg()
-        goal_cfg.sample_size = self.goal_samples_size
-        goal_cfg.new_spawn_samples = self.spawn_new_goal_samples
+        goal_cfg = self.create_goal_cfg_parameter()
 
         self.angle_networks_wrapper = AngleNetworkWrapper(self.sess, self.angle_predict_network, 3, obs_cfg,
                                                           goal_cfg, frame_id)
+
+    def create_goal_cfg_parameter(self):
+        goal_cfg = ParticleFilter2_5D_Cfg()
+        goal_cfg.sample_size = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_samples_size")
+        goal_cfg.new_spawn_samples = rospy.get_param("~collvoid/nn_controller_dwm1000/spawn_new_goal_samples")
+        x_resample_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_resample_x_limit")
+        y_resample_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_resample_y_limit")
+        goal_resample_yaw_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_resample_yaw_limit")
+        goal_respawn_yaw_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_respawn_yaw_limit")
+        goal_respawn_y_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_respawn_y_limit")
+        goal_respawn_x_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_respawn_x_limit")
+        goal_resample_prob = rospy.get_param("~collvoid/nn_controller_dwm1000/goal_resample_prob")
+        goal_cfg.resample_x_limit = [-x_resample_limit, x_resample_limit]
+        goal_cfg.resample_y_limit = [-y_resample_limit, y_resample_limit]
+        goal_cfg.resample_yaw_limit = [-np.pi * goal_resample_yaw_limit, np.pi * goal_resample_yaw_limit]
+        goal_cfg.respawn_yaw_limit = [-np.pi * goal_respawn_yaw_limit, np.pi * goal_respawn_yaw_limit]
+        goal_cfg.respawn_x_limit = [-goal_respawn_x_limit, goal_respawn_x_limit]
+        goal_cfg.respawn_y_limit = [-goal_respawn_y_limit, goal_respawn_y_limit]
+        goal_cfg.resample_prob = goal_resample_prob
+        return goal_cfg
+
+    def create_obs_cfg_parameter(self):
+        obs_cfg = ParticleFilter2_5D_Cfg()
+        obs_cfg.sample_size = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_samples_size")
+        obs_cfg.new_spawn_samples = rospy.get_param("~collvoid/nn_controller_dwm1000/spawn_new_obs_samples")
+        x_resample_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_resample_x_limit")
+        y_resample_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_resample_y_limit")
+        goal_resample_yaw_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_resample_yaw_limit")
+        goal_respawn_yaw_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_respawn_yaw_limit")
+        goal_respawn_y_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_respawn_y_limit")
+        goal_respawn_x_limit = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_respawn_x_limit")
+        goal_resample_prob = rospy.get_param("~collvoid/nn_controller_dwm1000/obs_resample_prob")
+        obs_cfg.resample_x_limit = [-x_resample_limit, x_resample_limit]
+        obs_cfg.resample_y_limit = [-y_resample_limit, y_resample_limit]
+        obs_cfg.resample_yaw_limit = [-np.pi * goal_resample_yaw_limit, np.pi * goal_resample_yaw_limit]
+        obs_cfg.respawn_yaw_limit = [-np.pi * goal_respawn_yaw_limit, np.pi * goal_respawn_yaw_limit]
+        obs_cfg.respawn_x_limit = [-goal_respawn_x_limit, goal_respawn_x_limit]
+        obs_cfg.respawn_y_limit = [-goal_respawn_y_limit, goal_respawn_y_limit]
+        obs_cfg.resample_prob = goal_resample_prob
+        return obs_cfg
+
 
     def get_new_goal_state(self, my_vx, my_vy, distance, dt, goal_offset = None):
         self.angle_networks_wrapper.update_goal_particle_filter(my_vx, my_vy, 0.0, 0.0, distance, dt)
@@ -365,6 +403,8 @@ class NNControllerDWM1000DiscreteParticleMultiSimple(CollvoidInterface):
         self.pre_obs_angle_pub = rospy.Publisher("pre_obstacle_angle", PoseStamped, queue_size=1)
         self.pre_goal_particle_pub = rospy.Publisher("goal_particle", PoseArray, queue_size=1)
         self.pre_obs_particle_pub = rospy.Publisher("obs_particle", PoseArray, queue_size=1)
+        self.real_distance_pub = rospy.Publisher("real_distance", Float32, queue_size=1)
+        self.dwm_distance_pub = rospy.Publisher("dwm_distance", Float32, queue_size=1)
         self.dwm_sensor = None
         if self.dwm1000_active or self.dwm_goal_active or self.dwm_obstacle_active:
             self.dwm_sensor = DWM10000DistanceSensor(self.my_pose_id, self.timeout, filter_size=1,
@@ -540,7 +580,10 @@ class NNControllerDWM1000DiscreteParticleMultiSimple(CollvoidInterface):
                     if self.dwm_obstacle_active:
                         tmp = self.dwm_sensor.get_distance(obstacle.id)
                         if tmp is not None:
+                            # print "real: {} dwm: {}".format(o_distance, tmp)
+                            self.real_distance_pub.publish(o_distance)
                             o_distance = tmp
+                            self.dwm_distance_pub.publish(o_distance)
                         else:
                             rospy.logwarn("OBSTACLE DISTANCE IS NOT AVAILABLE!")
                     self.nn.angle_networks_wrapper.append_obs_state(obstacle.id, self.vel_x, self.vel_y, o_vx, o_vy,

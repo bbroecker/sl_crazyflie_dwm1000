@@ -29,7 +29,25 @@ collvoid:
     min_speed_limit: 0.2
     speed_limit_max_distance: 1.5
     speed_limit_min_distance: 0.45
-    spawn_new_goal_samples: 0.0
-    spawn_new_obs_samples: 0.0
-    obs_samples_size: 900
+
     goal_samples_size: 900
+    spawn_new_goal_samples: 0.1
+    goal_resample_x_limit: 0.05
+    goal_resample_y_limit: 0.05
+    goal_yaw_limit: 1.0
+    goal_resample_yaw_limit: 0.1
+    goal_respawn_yaw_limit: 0.1
+    goal_respawn_y_limit: 0.01
+    goal_respawn_x_limit: 0.01
+    goal_resample_prob: 0.95
+
+    obs_samples_size: 900
+    spawn_new_obs_samples: 0.1
+    obs_resample_x_limit: 0.1
+    obs_resample_y_limit: 0.1
+    obs_yaw_limit: 1.0
+    obs_resample_yaw_limit: 0.1
+    obs_respawn_yaw_limit: 0.1
+    obs_respawn_y_limit: 0.1
+    obs_respawn_x_limit: 0.1
+    obs_resample_prob: 0.95

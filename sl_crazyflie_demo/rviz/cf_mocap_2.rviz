@@ -126,7 +126,7 @@ Visualization Manager:
       Color: 255; 25; 0
       Enabled: true
       Name: PoseArray
-      Topic: /crazyflie1/goal_particle
+      Topic: /crazyflie1/obs_particle
       Unreliable: false
       Value: true
     - Alpha: 1

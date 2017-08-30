@@ -25,11 +25,33 @@ collvoid:
 #    movement_config_file: "/home/broecker/src/cf_nn_weights/v2/movement/drqn_3/nn_config_drqn.yaml"
     movement_config_file: "/home/broecker/src/cf_nn_weights/v2/movement/simple_dqn/dqn_2/nn_config.yaml"
     angle_config_file: "/home/broecker/src/cf_nn_weights/v2/angle_discrete/orientation_joint/rnn_1/nn_config.yaml"
-    max_speed_limit: 0.7
-    min_speed_limit: 0.2
+    max_speed_limit: 0.45
+    min_speed_limit: 0.15
     speed_limit_max_distance: 1.5
     speed_limit_min_distance: 0.45
-    spawn_new_goal_samples: 0.1
-    spawn_new_obs_samples: 0.1
-    obs_samples_size: 70
+
     goal_samples_size: 30
+    spawn_new_goal_samples: 0.1
+    goal_resample_x_limit: 0.05
+    goal_resample_y_limit: 0.05
+    goal_resample_yaw_limit: 0.1
+    goal_respawn_yaw_limit: 0.1
+    goal_respawn_y_limit: 0.01
+    goal_respawn_x_limit: 0.01
+    goal_resample_prob: 0.95
+
+    obs_samples_size: 300
+    spawn_new_obs_samples: 0.1
+    #in meter
+    obs_resample_x_limit: 0.3
+    obs_resample_y_limit: 0.3
+    #percent of pi
+    obs_resample_yaw_limit: 0.1
+    obs_respawn_yaw_limit: 0.1
+    #in meter
+    obs_respawn_y_limit: 0.1
+    obs_respawn_x_limit: 0.1
+    obs_resample_prob: 0.70
+
+
+
