@@ -317,6 +317,7 @@ class NNControllerDWM1000DiscreteParticleMulti(CollvoidInterface):
         self.cf_frame_id = rospy.get_param("~collvoid/nn_controller_dwm1000/cf_frame_id")
         self.deactivate_angle_network = rospy.get_param("~collvoid/nn_controller_dwm1000/deactivate_angle_network",
                                                         False)
+        self.update_rate = rospy.get_param("~collvoid/nn_controller_dwm1000/update_rate")
         if self.dwm_goal_active:
             self.dwm_goal_id = rospy.get_param("~collvoid/nn_controller_dwm1000/dwm1000_goal_id")
         if self.dwm_obstacle_active:
@@ -331,7 +332,7 @@ class NNControllerDWM1000DiscreteParticleMulti(CollvoidInterface):
         self.angle_cfg_predict.keep_prob = 1.0
         self.accuracy_list = []
         self.nn = NNMovementWrapper(self.movement_cfg_predict, self.angle_cfg_predict, self.cf_frame_id)
-        self.update_rate = self.movement_cfg_predict.update_rate
+        # self.update_rate = self.movement_cfg_predict.update_rate
         self.max_velocity = self.movement_cfg_predict.max_velocity
         self.max_sensor_distance = self.movement_cfg_predict.max_sensor_distance
         self.start_nn_controller_srvs = rospy.Service("start_nn_controller", Empty, self.start_callback)
