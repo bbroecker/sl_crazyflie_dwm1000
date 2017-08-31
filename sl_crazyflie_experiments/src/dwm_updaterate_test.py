@@ -4,7 +4,7 @@ from crazyflie_driver.msg import GenericLogData
 
 class test:
     def __init__(self):
-        rospy.Subscriber("/crazyflie3/log_ranges", GenericLogData, self.log_callback)
+        rospy.Subscriber("/crazyflie1/log_ranges", GenericLogData, self.log_callback)
         self.prev_value = 0.0
         self.last_update = rospy.Time.now()
         rospy.spin()
